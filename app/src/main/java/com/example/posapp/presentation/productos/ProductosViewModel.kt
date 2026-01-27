@@ -2,6 +2,7 @@ package com.example.posapp.presentation.productos
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.posapp.data.repository.CarritoRepository
 import com.example.posapp.data.repository.CategoriaRepository
 import com.example.posapp.data.repository.ProductoRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -12,7 +13,8 @@ import javax.inject.Inject
 @HiltViewModel
 class ProductosViewModel @Inject constructor(
     private val productoRepository: ProductoRepository,
-    private val categoriaRepository: CategoriaRepository
+    private val categoriaRepository: CategoriaRepository,
+    val carritoRepository: CarritoRepository
 ) : ViewModel() {
 
     // Estado privado
@@ -21,8 +23,13 @@ class ProductosViewModel @Inject constructor(
     val state = _state.asStateFlow()
 
     init {
-        // Al crear el ViewModel, cargar datos automáticamente
+        println("🟢 ProductosViewModel CREADO")// Al crear el ViewModel, cargar datos automáticamente
         loadCategorias()
+        loadProductos()
+    }
+    // Forzar recarga (llamar desde ProductosScreen)
+    fun recargarProductos() {
+        println("🔄 RECARGANDO PRODUCTOS...")
         loadProductos()
     }
 
@@ -38,6 +45,12 @@ class ProductosViewModel @Inject constructor(
                     // Actualizar estado con las categorías
                     _state.update { it.copy(categorias = categorias) }
                 }
+        }
+    }
+    // Obtener cantidad de items en el carrito (reactivo)
+    fun getCantidadCarrito(): Flow<Int> {
+        return carritoRepository.items.map { items ->
+            items.sumOf { it.cantidad }
         }
     }
 

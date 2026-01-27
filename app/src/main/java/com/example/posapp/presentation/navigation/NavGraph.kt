@@ -7,7 +7,8 @@ import androidx.navigation.compose.composable
 import com.example.posapp.presentation.home.HomeScreen
 import com.example.posapp.presentation.login.LoginScreen
 import com.example.posapp.presentation.productos.ProductosScreen
-import com.example.posapp.presentation.productos.ProductoDetailScreen  // ← NUEVO
+import com.example.posapp.presentation.productos.ProductoDetailScreen
+import com.example.posapp.presentation.venta.VentaScreen  // ← NUEVO
 
 @Composable
 fun NavGraph(
@@ -31,7 +32,10 @@ fun NavGraph(
         composable(route = Screen.Home.route) {
             HomeScreen(
                 onNavigateToProductos = {
-                    navController.navigate(Screen.Productos.route)
+                    navController.navigate(Screen.Productos.route) {
+                        // Eliminar Home del back stack
+                        popUpTo(Screen.Home.route) { inclusive = true }
+                    }
                 }
             )
         }
@@ -39,17 +43,30 @@ fun NavGraph(
         composable(route = Screen.Productos.route) {
             ProductosScreen(
                 onProductoClick = { productoId ->
-                    // Navegar al detalle con el ID
                     navController.navigate(Screen.ProductoDetail.createRoute(productoId))
+                },
+                onNavigateToCarrito = {  // ← NUEVO
+                    navController.navigate(Screen.Carrito.route)
                 }
             )
         }
 
-        // NUEVA RUTA: Detalle de producto
         composable(route = Screen.ProductoDetail.route) {
             ProductoDetailScreen(
                 onNavigateBack = {
-                    navController.popBackStack()  // Volver atrás
+                    navController.popBackStack()
+                }
+            )
+        }
+
+        // NUEVA RUTA: Carrito
+        composable(route = Screen.Carrito.route) {
+            VentaScreen(
+                onNavigateBack = {
+                    navController.popBackStack()  // Volver al catálogo
+                },
+                onVentaCompletada = {
+                    navController.popBackStack()  // Volver al catálogo después de vender
                 }
             )
         }

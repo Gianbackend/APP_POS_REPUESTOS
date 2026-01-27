@@ -6,6 +6,7 @@ import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.ShoppingCart
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -15,13 +16,24 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.example.posapp.presentation.productos.components.ProductoCard
 
-@OptIn(ExperimentalMaterial3Api::class)  // ← Cubre toda la pantalla
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ProductosScreen(
     onProductoClick: (Long) -> Unit,
+    onNavigateToCarrito: () -> Unit,
     viewModel: ProductosViewModel = hiltViewModel()
 ) {
     val state by viewModel.state.collectAsState()
+
+    // Observar cantidad en el carrito (simplificado)
+    val cantidadCarrito by viewModel.getCantidadCarrito().collectAsState(initial = 0)
+
+
+    // Recargar cuando vuelve de otra pantalla
+    LaunchedEffect(Unit) {
+        println("🔄 ProductosScreen recompuesto")
+        viewModel.recargarProductos()
+    }
 
     Scaffold(
         topBar = {
@@ -31,6 +43,29 @@ fun ProductosScreen(
                     containerColor = MaterialTheme.colorScheme.primaryContainer
                 )
             )
+        },
+        floatingActionButton = {
+            if (cantidadCarrito > 0) {
+                FloatingActionButton(
+                    onClick = onNavigateToCarrito,
+                    containerColor = MaterialTheme.colorScheme.primary
+                ) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = 16.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.ShoppingCart,
+                            contentDescription = "Carrito"
+                        )
+                        Text(
+                            text = "($cantidadCarrito)",
+                            style = MaterialTheme.typography.titleMedium
+                        )
+                    }
+                }
+            }
         }
     ) { paddingValues ->
         Column(
@@ -53,12 +88,8 @@ fun ProductosScreen(
                 onCategoriaSelected = viewModel::onCategoriaSelected,
                 onToggleStockBajo = viewModel::onToggleStockBajo,
                 onClearFilters = viewModel::onClearFilters,
-                modifier = Modifier
-                    .padding(horizontal = 16.dp)
-                    .padding(bottom = 8.dp)  // ← Cambia el Spacer por padding bottom
+                modifier = Modifier.padding(horizontal = 16.dp)
             )
-
-// ELIMINA el Spacer(modifier = Modifier.height(8.dp))
 
             when {
                 state.isLoading -> {
@@ -97,7 +128,7 @@ fun ProductosScreen(
                 else -> {
                     LazyColumn(
                         modifier = Modifier.fillMaxSize(),
-                        contentPadding = PaddingValues(16.dp),
+                        contentPadding = PaddingValues(16.dp),  // ← TU VERSIÓN (está bien)
                         verticalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
                         items(
@@ -115,6 +146,8 @@ fun ProductosScreen(
         }
     }
 }
+
+// ... resto igual (SearchBar, FilterChips)
 
 @Composable
 private fun SearchBar(
