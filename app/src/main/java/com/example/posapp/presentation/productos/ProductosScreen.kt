@@ -28,13 +28,6 @@ fun ProductosScreen(
     // Observar cantidad en el carrito (simplificado)
     val cantidadCarrito by viewModel.getCantidadCarrito().collectAsState(initial = 0)
 
-
-    // Recargar cuando vuelve de otra pantalla
-    LaunchedEffect(Unit) {
-        println("🔄 ProductosScreen recompuesto")
-        viewModel.recargarProductos()
-    }
-
     Scaffold(
         topBar = {
             TopAppBar(
