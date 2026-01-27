@@ -1,0 +1,57 @@
+package com.example.posapp.data.local.entities
+
+import androidx.room.Entity
+import androidx.room.ForeignKey
+import androidx.room.Index
+import androidx.room.PrimaryKey
+import com.example.posapp.domain.model.Producto
+
+@Entity(
+    tableName = "productos",
+    foreignKeys = [
+        ForeignKey(
+            entity = CategoriaEntity::class,
+            parentColumns = ["id"],
+            childColumns = ["categoriaId"],
+            onDelete = ForeignKey.CASCADE
+        )
+    ],
+    indices = [
+        Index(value = ["codigo"], unique = true),
+        Index(value = ["categoriaId"])
+    ]
+)
+data class ProductoEntity(
+    @PrimaryKey(autoGenerate = true)
+    val id: Long = 0,
+    val codigo: String,
+    val nombre: String,
+    val descripcion: String,
+    val marca: String,
+    val modelo: String,
+    val precio: Double,
+    val stock: Int,
+    val stockMinimo: Int = 5,
+    val categoriaId: Long,
+    val imagenUrl: String? = null,
+    val ubicacion: String? = null,
+    val activo: Boolean = true,
+    val fechaCreacion: Long = System.currentTimeMillis()
+) {
+    fun toDomain(categoriaNombre: String = "") = Producto(
+        id = id,
+        codigo = codigo,
+        nombre = nombre,
+        descripcion = descripcion,
+        marca = marca,
+        modelo = modelo,
+        precio = precio,
+        stock = stock,
+        stockMinimo = stockMinimo,
+        categoriaId = categoriaId,
+        categoriaNombre = categoriaNombre,
+        imagenUrl = imagenUrl,
+        ubicacion = ubicacion,
+        activo = activo
+    )
+}
