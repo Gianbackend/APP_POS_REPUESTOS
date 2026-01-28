@@ -3,6 +3,7 @@ package com.example.posapp.presentation.venta
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.posapp.data.repository.CarritoRepository
+import com.example.posapp.data.repository.VentaRepository  // ← NUEVO
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -12,18 +13,17 @@ import javax.inject.Inject
 
 @HiltViewModel
 class VentaViewModel @Inject constructor(
-    private val carritoRepository: CarritoRepository  // Observa el carrito
+    private val carritoRepository: CarritoRepository,
+    private val ventaRepository: VentaRepository  // ← NUEVO
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(VentaState())
     val state = _state.asStateFlow()
 
     init {
-        // Observar cambios en el carrito
         observarCarrito()
     }
 
-    // Observar items del carrito y actualizar estado
     private fun observarCarrito() {
         viewModelScope.launch {
             carritoRepository.items.collect { items ->
@@ -40,22 +40,18 @@ class VentaViewModel @Inject constructor(
         }
     }
 
-    // Actualizar cantidad de un item
     fun onActualizarCantidad(productoId: Long, nuevaCantidad: Int) {
         carritoRepository.actualizarCantidad(productoId, nuevaCantidad)
     }
 
-    // Eliminar item del carrito
     fun onEliminarItem(productoId: Long) {
         carritoRepository.eliminarProducto(productoId)
     }
 
-    // Cambiar método de pago
     fun onMetodoPagoChange(metodo: String) {
         _state.update { it.copy(metodoPago = metodo) }
     }
 
-    // Aplicar descuento
     fun onDescuentoChange(descuento: Double) {
         _state.update {
             it.copy(
@@ -65,7 +61,7 @@ class VentaViewModel @Inject constructor(
         }
     }
 
-    // Procesar venta (por ahora solo limpia el carrito)
+    // ACTUALIZADO: Ahora guarda en la BD
     fun onProcesarVenta() {
         if (_state.value.items.isEmpty()) {
             _state.update { it.copy(error = "El carrito está vacío") }
@@ -73,26 +69,46 @@ class VentaViewModel @Inject constructor(
         }
 
         viewModelScope.launch {
-            _state.update { it.copy(isProcessing = true) }
+            _state.update { it.copy(isProcessing = true, error = null) }
 
-            // Aquí más adelante guardaremos en la BD
-            // Por ahora solo limpiamos el carrito
+            // Procesar y guardar venta
+            val result = ventaRepository.procesarVenta(
+                items = _state.value.items,
+                metodoPago = _state.value.metodoPago,
+                descuento = _state.value.descuento,
+                impuesto = _state.value.impuesto
+            )
 
-            kotlinx.coroutines.delay(1000)  // Simular procesamiento
+            if (result.isSuccess) {
+                // Venta exitosa
+                val ventaId = result.getOrNull()
 
-            carritoRepository.limpiarCarrito()
+                // Limpiar carrito
+                carritoRepository.limpiarCarrito()
 
-            _state.update {
-                it.copy(
-                    isProcessing = false,
-                    ventaCompletada = true
-                )
+                // Actualizar estado
+                _state.update {
+                    it.copy(
+                        isProcessing = false,
+                        ventaCompletada = true,
+                        ventaId = ventaId  // Guardar ID de la venta
+                    )
+                }
+            } else {
+                // Error al procesar
+                val error = result.exceptionOrNull()?.message ?: "Error al procesar la venta"
+
+                _state.update {
+                    it.copy(
+                        isProcessing = false,
+                        error = error
+                    )
+                }
             }
         }
     }
 
-    // Resetear venta completada
     fun onResetVentaCompletada() {
-        _state.update { it.copy(ventaCompletada = false) }
+        _state.update { it.copy(ventaCompletada = false, ventaId = null) }
     }
 }

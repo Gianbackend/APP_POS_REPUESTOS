@@ -8,7 +8,8 @@ import com.example.posapp.presentation.home.HomeScreen
 import com.example.posapp.presentation.login.LoginScreen
 import com.example.posapp.presentation.productos.ProductosScreen
 import com.example.posapp.presentation.productos.ProductoDetailScreen
-import com.example.posapp.presentation.venta.VentaScreen  // ← NUEVO
+import com.example.posapp.presentation.venta.VentaScreen
+import com.example.posapp.presentation.ticket.TicketScreen  // ← NUEVO
 
 @Composable
 fun NavGraph(
@@ -33,7 +34,6 @@ fun NavGraph(
             HomeScreen(
                 onNavigateToProductos = {
                     navController.navigate(Screen.Productos.route) {
-                        // Eliminar Home del back stack
                         popUpTo(Screen.Home.route) { inclusive = true }
                     }
                 }
@@ -45,7 +45,7 @@ fun NavGraph(
                 onProductoClick = { productoId ->
                     navController.navigate(Screen.ProductoDetail.createRoute(productoId))
                 },
-                onNavigateToCarrito = {  // ← NUEVO
+                onNavigateToCarrito = {
                     navController.navigate(Screen.Carrito.route)
                 }
             )
@@ -59,14 +59,29 @@ fun NavGraph(
             )
         }
 
-        // NUEVA RUTA: Carrito
         composable(route = Screen.Carrito.route) {
             VentaScreen(
                 onNavigateBack = {
-                    navController.popBackStack()  // Volver al catálogo
+                    navController.popBackStack()
                 },
-                onVentaCompletada = {
-                    navController.popBackStack()  // Volver al catálogo después de vender
+                onVentaCompletada = { ventaId ->  // ← CAMBIO: ahora recibe ventaId
+                    // Navegar al ticket con el ID de la venta
+                    navController.navigate(Screen.Ticket.createRoute(ventaId)) {
+                        // Limpiar el back stack (carrito y productos)
+                        popUpTo(Screen.Productos.route) { inclusive = false }
+                    }
+                }
+            )
+        }
+
+        // NUEVA RUTA: Ticket
+        composable(route = Screen.Ticket.route) {
+            TicketScreen(
+                onNavigateToCatalogo = {
+                    // Volver al catálogo limpiando el ticket del back stack
+                    navController.navigate(Screen.Productos.route) {
+                        popUpTo(Screen.Productos.route) { inclusive = true }
+                    }
                 }
             )
         }

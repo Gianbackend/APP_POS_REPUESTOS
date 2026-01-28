@@ -22,17 +22,16 @@ import com.example.posapp.domain.model.ItemCarrito
 @Composable
 fun VentaScreen(
     onNavigateBack: () -> Unit,        // Volver al catálogo
-    onVentaCompletada: () -> Unit,     // Cuando termina la venta
+    onVentaCompletada: (Long) -> Unit,     // ← CAMBIO: recibe ventaId
     viewModel: VentaViewModel = hiltViewModel()
 ) {
     val state by viewModel.state.collectAsState()
 
     // Navegar cuando la venta se completa
     LaunchedEffect(state.ventaCompletada) {
-        if (state.ventaCompletada) {
-            kotlinx.coroutines.delay(1500)
+        if (state.ventaCompletada && state.ventaId != null) {  // ← Verificar que ventaId existe
+            onVentaCompletada(state.ventaId!!)  // ← Pasar ventaId
             viewModel.onResetVentaCompletada()
-            onVentaCompletada()
         }
     }
 
@@ -52,7 +51,8 @@ fun VentaScreen(
         }
     ) { paddingValues ->
 
-        if (state.items.isEmpty()) {
+        //if (state.items.isEmpty()) {
+            if (state.items.isEmpty() && !state.ventaCompletada) {
             // Carrito vacío
             Box(
                 modifier = Modifier
