@@ -1,8 +1,10 @@
 package com.example.posapp.data.repository
 
+import com.example.posapp.data.local.dao.ClienteDao
 import com.example.posapp.data.local.dao.DetalleVentaDao
 import com.example.posapp.data.local.dao.ProductoDao
 import com.example.posapp.data.local.dao.VentaDao
+import com.example.posapp.data.local.entities.ClienteEntity
 import com.example.posapp.data.local.entities.DetalleVentaEntity
 import com.example.posapp.data.local.entities.VentaEntity
 import com.example.posapp.data.preferences.UserPreferences
@@ -17,7 +19,8 @@ import javax.inject.Singleton
 class VentaRepository @Inject constructor(
     private val ventaDao: VentaDao,              // Para guardar ventas
     private val detalleVentaDao: DetalleVentaDao, // Para guardar items
-    private val productoDao: ProductoDao,         // Para reducir stock
+    private val productoDao: ProductoDao,
+    private val clienteDao: ClienteDao,// Para reducir stock
     private val userPreferences: UserPreferences  // Para obtener usuario actual
 ) {
 
@@ -25,47 +28,74 @@ class VentaRepository @Inject constructor(
     suspend fun procesarVenta(
         items: List<ItemCarrito>,
         metodoPago: String,
+        clienteNombre: String,       // ← NUEVO
+        clienteDocumento: String,    // ← NUEVO
+        clienteTelefono: String = "", // ← NUEVO
+        clienteEmail: String = "",   // ← NUEVO
         descuento: Double = 0.0,
-        impuesto: Double = 13.0
+        impuesto: Double = 18.0
     ): Result<Long> {
         return try {
-            // 1. Obtener usuario actual
+            // 1. Usuario
             val session = userPreferences.userSession.first()
             val usuarioId = session.userId
 
             if (usuarioId == 0L) {
                 return Result.failure(Exception("Usuario no autenticado"))
             }
+            // 2. Guardar o buscar cliente
+            var clienteId: Long? = null
 
-            // 2. Calcular totales
-            val subtotal = items.sumOf { it.subtotal }
-            val descuentoAplicado = subtotal * (descuento / 100)
-            val subtotalConDescuento = subtotal - descuentoAplicado
-            val impuestoAplicado = subtotalConDescuento * (impuesto / 100)
-            val total = subtotalConDescuento + impuestoAplicado
+            if (clienteNombre.isNotBlank() && clienteDocumento.isNotBlank()) {
+                // Buscar si el cliente ya existe por documento
+                val clienteExistente = clienteDao.getByDocumento(clienteDocumento)
 
-            // 3. Generar número de venta único
+                clienteId = if (clienteExistente != null) {
+                    // Cliente existe, usar su ID
+                    clienteExistente.id
+                } else {
+                    // Cliente nuevo, guardarlo
+                    val nuevoCliente = ClienteEntity(
+                        nombre = clienteNombre,
+                        documento = clienteDocumento,
+                        telefono = clienteTelefono,
+                        email = clienteEmail,
+                        direccion = "",
+                        tipo = "MINORISTA"
+                    )
+                    clienteDao.insert(nuevoCliente)
+                }
+            }
+            // 2. Calcular totales (precio ya incluye IVA)
+            val totalConIVA = items.sumOf { it.subtotal }
+            val descuentoAplicado = totalConIVA * (descuento / 100)
+            val total = totalConIVA - descuentoAplicado
+
+            // Desglose del IVA (para guardar en BD)
+            val subtotalSinIVA = total / (1 + impuesto / 100)
+            //val montoIVA = total - subtotalSinIVA
+
+            // 3. Número de venta
             val numeroVenta = generarNumeroVenta()
 
-            // 4. Crear entidad de venta
+            // 4. Crear venta
             val ventaEntity = VentaEntity(
                 numeroVenta = numeroVenta,
                 usuarioId = usuarioId,
-                clienteId = null,  // Por ahora sin cliente
-                subtotal = subtotal,
+                clienteId = null,  // Por ahora null, luego lo agregamos
+                subtotal = subtotalSinIVA,  // Subtotal sin IVA
                 descuento = descuento,
                 impuesto = impuesto,
-                total = total,
+                total = total,  // Total con IVA
                 metodoPago = metodoPago,
                 estado = "COMPLETADA",
                 fechaVenta = System.currentTimeMillis(),
                 sincronizado = false
             )
 
-            // 5. Guardar venta en BD y obtener ID
+            // 5-8. Guardar venta, detalles, reducir stock (igual que antes)
             val ventaId = ventaDao.insert(ventaEntity)
 
-            // 6. Crear detalles de venta
             val detalles = items.map { item ->
                 DetalleVentaEntity(
                     ventaId = ventaId,
@@ -76,15 +106,12 @@ class VentaRepository @Inject constructor(
                 )
             }
 
-            // 7. Guardar detalles
             detalleVentaDao.insertAll(detalles)
 
-            // 8. Reducir stock de productos
             items.forEach { item ->
                 productoDao.reducirStock(item.producto.id, item.cantidad)
             }
 
-            // Retornar ID de la venta
             Result.success(ventaId)
 
         } catch (e: Exception) {

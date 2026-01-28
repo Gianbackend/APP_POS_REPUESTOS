@@ -63,39 +63,48 @@ class VentaViewModel @Inject constructor(
 
     // ACTUALIZADO: Ahora guarda en la BD
     fun onProcesarVenta() {
+        // Validar que haya items
         if (_state.value.items.isEmpty()) {
             _state.update { it.copy(error = "El carrito está vacío") }
+            return
+        }
+
+        // Validar datos del cliente
+        val clienteForm = _state.value.clienteForm
+        if (clienteForm.nombre.isBlank() || clienteForm.documento.isBlank()) {
+            _state.update { it.copy(error = "Nombre y DNI son obligatorios") }
             return
         }
 
         viewModelScope.launch {
             _state.update { it.copy(isProcessing = true, error = null) }
 
-            // Procesar y guardar venta
+            // Procesar venta con datos del cliente
             val result = ventaRepository.procesarVenta(
                 items = _state.value.items,
                 metodoPago = _state.value.metodoPago,
+                clienteNombre = clienteForm.nombre,      // ← NUEVO
+                clienteDocumento = clienteForm.documento, // ← NUEVO
+                clienteTelefono = clienteForm.telefono,  // ← NUEVO
+                clienteEmail = clienteForm.email,        // ← NUEVO
                 descuento = _state.value.descuento,
                 impuesto = _state.value.impuesto
             )
 
             if (result.isSuccess) {
-                // Venta exitosa
                 val ventaId = result.getOrNull()
 
-                // Limpiar carrito
                 carritoRepository.limpiarCarrito()
 
-                // Actualizar estado
                 _state.update {
                     it.copy(
                         isProcessing = false,
                         ventaCompletada = true,
-                        ventaId = ventaId  // Guardar ID de la venta
+                        ventaId = ventaId,
+                        mostrarFormCliente = false  // ← Cerrar el diálogo
                     )
                 }
             } else {
-                // Error al procesar
                 val error = result.exceptionOrNull()?.message ?: "Error al procesar la venta"
 
                 _state.update {
@@ -111,4 +120,51 @@ class VentaViewModel @Inject constructor(
     fun onResetVentaCompletada() {
         _state.update { it.copy(ventaCompletada = false, ventaId = null) }
     }
+    // Mostrar formulario de cliente
+    fun onMostrarFormCliente() {
+        _state.update { it.copy(mostrarFormCliente = true) }
+    }
+
+    // Ocultar formulario
+    fun onOcultarFormCliente() {
+        _state.update { it.copy(mostrarFormCliente = false) }
+    }
+
+    // Actualizar nombre
+    fun onNombreClienteChange(nombre: String) {
+        _state.update {
+            it.copy(
+                clienteForm = it.clienteForm.copy(nombre = nombre)
+            )
+        }
+    }
+
+    // Actualizar documento
+    fun onDocumentoClienteChange(documento: String) {
+        _state.update {
+            it.copy(
+                clienteForm = it.clienteForm.copy(documento = documento)
+            )
+        }
+    }
+
+    // Actualizar teléfono
+    fun onTelefonoClienteChange(telefono: String) {
+        _state.update {
+            it.copy(
+                clienteForm = it.clienteForm.copy(telefono = telefono)
+            )
+        }
+    }
+
+    // Actualizar email
+    fun onEmailClienteChange(email: String) {
+        _state.update {
+            it.copy(
+                clienteForm = it.clienteForm.copy(email = email)
+            )
+        }
+    }
+
+
 }

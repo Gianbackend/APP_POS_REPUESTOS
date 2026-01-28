@@ -3,6 +3,7 @@ package com.example.posapp.presentation.ticket
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.posapp.data.repository.ClienteRepository
 import com.example.posapp.data.repository.ProductoRepository
 import com.example.posapp.data.repository.VentaRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -16,6 +17,7 @@ import javax.inject.Inject
 class TicketViewModel @Inject constructor(
     private val ventaRepository: VentaRepository,
     private val productoRepository: ProductoRepository,
+    private val clienteRepository: ClienteRepository,
     savedStateHandle: SavedStateHandle  // Para recibir ventaId desde navegación
 ) : ViewModel() {
 
@@ -50,6 +52,15 @@ class TicketViewModel @Inject constructor(
 
                 // Obtener detalles de la venta
                 val detalles = ventaRepository.getDetallesVenta(ventaId)
+                // Obtener cliente si existe
+                var clienteNombre = "Cliente General"
+
+                if (venta.clienteId != null) {
+                    val cliente = clienteRepository.getClienteById(venta.clienteId)
+                    if (cliente != null) {
+                        clienteNombre = "${cliente.nombre} - ${cliente.documento}"
+                    }
+                }
 
                 // Convertir detalles a ItemTicket (con nombre del producto)
                 val items = detalles.map { detalle ->
@@ -68,6 +79,7 @@ class TicketViewModel @Inject constructor(
                     it.copy(
                         numeroVenta = venta.numeroVenta,
                         fechaVenta = venta.fechaVenta,
+                        clienteNombre = clienteNombre,
                         items = items,
                         subtotal = venta.subtotal,
                         descuento = venta.descuento,

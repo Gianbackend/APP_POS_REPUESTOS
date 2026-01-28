@@ -3,6 +3,9 @@ package com.example.posapp.presentation.venta
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ArrowBack
@@ -13,6 +16,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -21,16 +25,15 @@ import com.example.posapp.domain.model.ItemCarrito
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun VentaScreen(
-    onNavigateBack: () -> Unit,        // Volver al catálogo
-    onVentaCompletada: (Long) -> Unit,     // ← CAMBIO: recibe ventaId
+    onNavigateBack: () -> Unit,
+    onVentaCompletada: (Long) -> Unit,
     viewModel: VentaViewModel = hiltViewModel()
 ) {
     val state by viewModel.state.collectAsState()
 
-    // Navegar cuando la venta se completa
     LaunchedEffect(state.ventaCompletada) {
-        if (state.ventaCompletada && state.ventaId != null) {  // ← Verificar que ventaId existe
-            onVentaCompletada(state.ventaId!!)  // ← Pasar ventaId
+        if (state.ventaCompletada && state.ventaId != null) {
+            onVentaCompletada(state.ventaId!!)
             viewModel.onResetVentaCompletada()
         }
     }
@@ -51,8 +54,7 @@ fun VentaScreen(
         }
     ) { paddingValues ->
 
-        //if (state.items.isEmpty()) {
-            if (state.items.isEmpty() && !state.ventaCompletada) {
+        if (state.items.isEmpty() && !state.ventaCompletada && !state.isProcessing) {
             // Carrito vacío
             Box(
                 modifier = Modifier
@@ -86,7 +88,7 @@ fun VentaScreen(
                     .fillMaxSize()
                     .padding(paddingValues)
             ) {
-                // Lista de items (ocupa el espacio disponible)
+                // Lista de items
                 LazyColumn(
                     modifier = Modifier.weight(1f),
                     contentPadding = PaddingValues(16.dp),
@@ -117,7 +119,7 @@ fun VentaScreen(
                     }
                 }
 
-                // Resumen de totales (fijo abajo)
+                // Resumen de totales
                 Card(
                     modifier = Modifier.fillMaxWidth(),
                     colors = CardDefaults.cardColors(
@@ -127,14 +129,13 @@ fun VentaScreen(
                     Column(
                         modifier = Modifier.padding(16.dp)
                     ) {
-                        // Subtotal
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.SpaceBetween
                         ) {
-                            Text("Subtotal:", fontSize = 16.sp)
+                            Text("Subtotal (sin IVA):", fontSize = 16.sp)
                             Text(
-                                text = "$${String.format("%.2f", state.subtotal)}",
+                                text = "$${String.format("%.2f", state.calcularSubtotalSinIVA())}",
                                 fontSize = 16.sp,
                                 fontWeight = FontWeight.Medium
                             )
@@ -142,21 +143,19 @@ fun VentaScreen(
 
                         Spacer(modifier = Modifier.height(8.dp))
 
-                        // Impuesto
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.SpaceBetween
                         ) {
                             Text("IVA (${state.impuesto.toInt()}%):", fontSize = 16.sp)
                             Text(
-                                text = "$${String.format("%.2f", state.subtotal * (state.impuesto / 100))}",
+                                text = "$${String.format("%.2f", state.calcularMontoIVA())}",
                                 fontSize = 16.sp
                             )
                         }
 
                         Divider(modifier = Modifier.padding(vertical = 12.dp))
 
-                        // Total
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.SpaceBetween,
@@ -177,9 +176,8 @@ fun VentaScreen(
 
                         Spacer(modifier = Modifier.height(16.dp))
 
-                        // Botón Finalizar Venta
                         Button(
-                            onClick = viewModel::onProcesarVenta,
+                            onClick = viewModel::onMostrarFormCliente,
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .height(56.dp),
@@ -191,17 +189,32 @@ fun VentaScreen(
                                     color = MaterialTheme.colorScheme.onPrimary
                                 )
                             } else {
-                                Text("Finalizar Venta", fontSize = 18.sp)
+                                Text("Continuar con la venta", fontSize = 18.sp)
                             }
                         }
                     }
                 }
             }
         }
+
+        // Diálogo de datos del cliente (AGREGAR ESTO)
+        if (state.mostrarFormCliente) {
+            ClienteFormDialog(
+                clienteForm = state.clienteForm,
+                isProcessing = state.isProcessing,
+                error = state.error,
+                onDismiss = viewModel::onOcultarFormCliente,
+                onNombreChange = viewModel::onNombreClienteChange,
+                onDocumentoChange = viewModel::onDocumentoClienteChange,
+                onTelefonoChange = viewModel::onTelefonoClienteChange,
+                onEmailChange = viewModel::onEmailClienteChange,
+                onConfirmar = viewModel::onProcesarVenta
+            )
+        }
     }
 }
 
-// Card individual de cada item del carrito
+// Card individual de item
 @Composable
 private fun ItemCarritoCard(
     item: ItemCarrito,
@@ -219,7 +232,6 @@ private fun ItemCarritoCard(
                 .padding(12.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // Info del producto
             Column(
                 modifier = Modifier.weight(1f)
             ) {
@@ -239,11 +251,9 @@ private fun ItemCarritoCard(
 
             Spacer(modifier = Modifier.width(8.dp))
 
-            // Controles de cantidad
             Column(
                 horizontalAlignment = Alignment.End
             ) {
-                // Subtotal
                 Text(
                     text = "$${String.format("%.2f", item.subtotal)}",
                     fontSize = 18.sp,
@@ -253,11 +263,9 @@ private fun ItemCarritoCard(
 
                 Spacer(modifier = Modifier.height(8.dp))
 
-                // Cantidad con botones
                 Row(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    // Botón eliminar
                     IconButton(
                         onClick = onEliminar,
                         modifier = Modifier.size(32.dp)
@@ -271,7 +279,6 @@ private fun ItemCarritoCard(
 
                     Spacer(modifier = Modifier.width(4.dp))
 
-                    // Botón -
                     IconButton(
                         onClick = onDecrementar,
                         modifier = Modifier.size(32.dp),
@@ -280,7 +287,6 @@ private fun ItemCarritoCard(
                         Icon(Icons.Default.Remove, contentDescription = "Quitar")
                     }
 
-                    // Cantidad
                     Text(
                         text = "${item.cantidad}",
                         fontSize = 18.sp,
@@ -288,7 +294,6 @@ private fun ItemCarritoCard(
                         modifier = Modifier.padding(horizontal = 8.dp)
                     )
 
-                    // Botón +
                     IconButton(
                         onClick = onIncrementar,
                         modifier = Modifier.size(32.dp),
@@ -300,4 +305,125 @@ private fun ItemCarritoCard(
             }
         }
     }
+}
+
+// Diálogo del formulario de cliente
+@Composable
+private fun ClienteFormDialog(
+    clienteForm: ClienteFormState,
+    isProcessing: Boolean,
+    error: String?,
+    onDismiss: () -> Unit,
+    onNombreChange: (String) -> Unit,
+    onDocumentoChange: (String) -> Unit,
+    onTelefonoChange: (String) -> Unit,
+    onEmailChange: (String) -> Unit,
+    onConfirmar: () -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = { if (!isProcessing) onDismiss() },
+        title = {
+            Text(
+                text = "Datos del Cliente",
+                fontSize = 20.sp,
+                fontWeight = FontWeight.Bold
+            )
+        },
+        text = {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                OutlinedTextField(
+                    value = clienteForm.nombre,
+                    onValueChange = onNombreChange,
+                    label = { Text("Nombre *") },
+                    placeholder = { Text("Juan Pérez") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
+                    enabled = !isProcessing
+                )
+
+                OutlinedTextField(
+                    value = clienteForm.documento,
+                    onValueChange = onDocumentoChange,
+                    label = { Text("DNI / RUC *") },
+                    placeholder = { Text("12345678") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
+                    enabled = !isProcessing,
+                    keyboardOptions = KeyboardOptions(
+                        keyboardType = KeyboardType.Number
+                    )
+                )
+
+                OutlinedTextField(
+                    value = clienteForm.telefono,
+                    onValueChange = onTelefonoChange,
+                    label = { Text("Teléfono") },
+                    placeholder = { Text("987654321") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
+                    enabled = !isProcessing,
+                    keyboardOptions = KeyboardOptions(
+                        keyboardType = KeyboardType.Phone
+                    )
+                )
+
+                OutlinedTextField(
+                    value = clienteForm.email,
+                    onValueChange = onEmailChange,
+                    label = { Text("Email") },
+                    placeholder = { Text("cliente@mail.com") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
+                    enabled = !isProcessing,
+                    keyboardOptions = KeyboardOptions(
+                        keyboardType = KeyboardType.Email
+                    )
+                )
+
+                if (error != null) {
+                    Text(
+                        text = error,
+                        color = MaterialTheme.colorScheme.error,
+                        fontSize = 14.sp
+                    )
+                }
+
+                Text(
+                    text = "* Campos obligatorios",
+                    fontSize = 12.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    fontStyle = androidx.compose.ui.text.font.FontStyle.Italic
+                )
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = onConfirmar,
+                enabled = !isProcessing &&
+                        clienteForm.nombre.isNotBlank() &&
+                        clienteForm.documento.isNotBlank()
+            ) {
+                if (isProcessing) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(20.dp),
+                        color = MaterialTheme.colorScheme.onPrimary
+                    )
+                } else {
+                    Text("Finalizar Venta")
+                }
+            }
+        },
+        dismissButton = {
+            if (!isProcessing) {
+                TextButton(onClick = onDismiss) {
+                    Text("Cancelar")
+                }
+            }
+        }
+    )
 }

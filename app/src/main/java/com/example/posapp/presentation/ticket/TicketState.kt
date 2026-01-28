@@ -5,6 +5,7 @@ import com.example.posapp.domain.model.Producto
 data class TicketState(
     val numeroVenta: String = "",
     val fechaVenta: Long = 0L,
+    val clienteNombre: String = "",
     val items: List<ItemTicket> = emptyList(),
     val subtotal: Double = 0.0,
     val descuento: Double = 0.0,

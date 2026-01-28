@@ -167,6 +167,25 @@ fun TicketScreen(
                                     fontWeight = FontWeight.Bold
                                 )
                             }
+                            Spacer(modifier = Modifier.height(8.dp))
+
+// Cliente
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Text(
+                                    text = "Cliente:",
+                                    fontSize = 14.sp,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                                Text(
+                                    text = state.clienteNombre,
+                                    fontSize = 14.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
+
                         }
                     }
 
