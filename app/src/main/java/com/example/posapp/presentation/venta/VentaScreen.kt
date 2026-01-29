@@ -17,10 +17,12 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.example.posapp.domain.model.ItemCarrito
+import kotlinx.coroutines.delay
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -33,10 +35,16 @@ fun VentaScreen(
 
     LaunchedEffect(state.ventaCompletada) {
         if (state.ventaCompletada && state.ventaId != null) {
+            // ✅ Navegar INMEDIATAMENTE sin delays
+            viewModel.onPreNavigate()
+            delay(1500)
             onVentaCompletada(state.ventaId!!)
+            // ✅ Esperar 3 segundos antes de resetear
+            delay(3000)
             viewModel.onResetVentaCompletada()
         }
     }
+
 
     Scaffold(
         topBar = {
@@ -54,141 +62,179 @@ fun VentaScreen(
         }
     ) { paddingValues ->
 
-        if (state.items.isEmpty() && !state.ventaCompletada && !state.isProcessing) {
-            // Carrito vacío
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(paddingValues),
-                contentAlignment = Alignment.Center
-            ) {
-                Column(
-                    horizontalAlignment = Alignment.CenterHorizontally
+        when {
+            // ✅ Solo mostrar loading mientras procesa
+            state.isProcessing -> {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(paddingValues),
+                    contentAlignment = Alignment.Center
                 ) {
-                    Text(
-                        text = "🛒",
-                        fontSize = 64.sp
-                    )
-                    Spacer(modifier = Modifier.height(16.dp))
-                    Text(
-                        text = "El carrito está vacío",
-                        fontSize = 18.sp,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                    Spacer(modifier = Modifier.height(24.dp))
-                    Button(onClick = onNavigateBack) {
-                        Text("Ir al catálogo")
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.Center
+                    ) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(64.dp),
+                            strokeWidth = 6.dp
+                        )
+                        Spacer(modifier = Modifier.height(24.dp))
+                        Text(
+                            text = if (state.ventaCompletada) {
+                                "✅ Venta completada"
+                            } else {
+                                "Procesando venta..."
+                            },
+                            fontSize = 20.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(
+                            text = if (state.ventaCompletada) {
+                                "Redirigiendo al ticket..."
+                            } else {
+                                "Por favor espere"
+                            },
+                            fontSize = 14.sp,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+
                     }
                 }
             }
-        } else {
-            // Carrito con items
-            Column(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(paddingValues)
-            ) {
-                // Lista de items
-                LazyColumn(
-                    modifier = Modifier.weight(1f),
-                    contentPadding = PaddingValues(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    items(
-                        items = state.items,
-                        key = { it.producto.id }
-                    ) { item ->
-                        ItemCarritoCard(
-                            item = item,
-                            onIncrementar = {
-                                viewModel.onActualizarCantidad(
-                                    item.producto.id,
-                                    item.cantidad + 1
-                                )
-                            },
-                            onDecrementar = {
-                                viewModel.onActualizarCantidad(
-                                    item.producto.id,
-                                    item.cantidad - 1
-                                )
-                            },
-                            onEliminar = {
-                                viewModel.onEliminarItem(item.producto.id)
-                            }
-                        )
-                    }
-                }
 
-                // Resumen de totales
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = CardDefaults.cardColors(
-                        containerColor = MaterialTheme.colorScheme.secondaryContainer
-                    )
+            // ✅ Carrito vacío
+            state.items.isEmpty() -> {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(paddingValues),
+                    contentAlignment = Alignment.Center
                 ) {
                     Column(
-                        modifier = Modifier.padding(16.dp)
+                        horizontalAlignment = Alignment.CenterHorizontally
                     ) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween
-                        ) {
-                            Text("Subtotal (sin IVA):", fontSize = 16.sp)
-                            Text(
-                                text = "$${String.format("%.2f", state.calcularSubtotalSinIVA())}",
-                                fontSize = 16.sp,
-                                fontWeight = FontWeight.Medium
-                            )
-                        }
-
-                        Spacer(modifier = Modifier.height(8.dp))
-
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween
-                        ) {
-                            Text("IVA (${state.impuesto.toInt()}%):", fontSize = 16.sp)
-                            Text(
-                                text = "$${String.format("%.2f", state.calcularMontoIVA())}",
-                                fontSize = 16.sp
-                            )
-                        }
-
-                        Divider(modifier = Modifier.padding(vertical = 12.dp))
-
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Text(
-                                text = "TOTAL:",
-                                fontSize = 20.sp,
-                                fontWeight = FontWeight.Bold
-                            )
-                            Text(
-                                text = "$${String.format("%.2f", state.calcularTotal())}",
-                                fontSize = 28.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.primary
-                            )
-                        }
-
+                        Text(text = "🛒", fontSize = 64.sp)
                         Spacer(modifier = Modifier.height(16.dp))
+                        Text(
+                            text = "El carrito está vacío",
+                            fontSize = 18.sp,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Spacer(modifier = Modifier.height(24.dp))
+                        Button(onClick = onNavigateBack) {
+                            Text("Ir al catálogo")
+                        }
+                    }
+                }
+            }
 
-                        Button(
-                            onClick = viewModel::onMostrarFormCliente,
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(56.dp),
-                            enabled = !state.isProcessing
+            // ✅ Carrito con items
+            else -> {
+                Column(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(paddingValues)
+                ) {
+                    // Lista de items
+                    LazyColumn(
+                        modifier = Modifier.weight(1f),
+                        contentPadding = PaddingValues(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        items(
+                            items = state.items,
+                            key = { it.producto.id }
+                        ) { item ->
+                            ItemCarritoCard(
+                                item = item,
+                                onIncrementar = {
+                                    viewModel.onActualizarCantidad(
+                                        item.producto.id,
+                                        item.cantidad + 1
+                                    )
+                                },
+                                onDecrementar = {
+                                    viewModel.onActualizarCantidad(
+                                        item.producto.id,
+                                        item.cantidad - 1
+                                    )
+                                },
+                                onEliminar = {
+                                    viewModel.onEliminarItem(item.producto.id)
+                                }
+                            )
+                        }
+                    }
+
+                    // Resumen de totales
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = CardDefaults.cardColors(
+                            containerColor = MaterialTheme.colorScheme.secondaryContainer
+                        )
+                    ) {
+                        Column(
+                            modifier = Modifier.padding(16.dp)
                         ) {
-                            if (state.isProcessing) {
-                                CircularProgressIndicator(
-                                    modifier = Modifier.size(24.dp),
-                                    color = MaterialTheme.colorScheme.onPrimary
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Text("Subtotal (sin IVA):", fontSize = 16.sp)
+                                Text(
+                                    text = "$${String.format("%.2f", state.calcularSubtotalSinIVA())}",
+                                    fontSize = 16.sp,
+                                    fontWeight = FontWeight.Medium
                                 )
-                            } else {
+                            }
+
+                            Spacer(modifier = Modifier.height(8.dp))
+
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Text("IVA (${state.impuesto.toInt()}%):", fontSize = 16.sp)
+                                Text(
+                                    text = "$${String.format("%.2f", state.calcularMontoIVA())}",
+                                    fontSize = 16.sp
+                                )
+                            }
+
+                            Divider(modifier = Modifier.padding(vertical = 12.dp))
+
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    text = "TOTAL:",
+                                    fontSize = 20.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
+                                Text(
+                                    text = "$${String.format("%.2f", state.calcularTotal())}",
+                                    fontSize = 28.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.primary
+                                )
+                            }
+
+                            Spacer(modifier = Modifier.height(16.dp))
+
+                            Button(
+                                onClick = {
+                                    android.util.Log.d("VentaScreen", "🟢 Botón Finalizar Venta presionado")
+                                    viewModel.onMostrarFormCliente()
+                                },
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(56.dp),
+                                enabled = !state.isProcessing
+                            ) {
                                 Text("Continuar con la venta", fontSize = 18.sp)
                             }
                         }
@@ -197,8 +243,10 @@ fun VentaScreen(
             }
         }
 
-        // Diálogo de datos del cliente (AGREGAR ESTO)
+
+        // Diálogo de datos del cliente
         if (state.mostrarFormCliente) {
+            android.util.Log.d("VentaScreen", "📋 Mostrando diálogo de cliente")
             ClienteFormDialog(
                 clienteForm = state.clienteForm,
                 isProcessing = state.isProcessing,
@@ -208,7 +256,10 @@ fun VentaScreen(
                 onDocumentoChange = viewModel::onDocumentoClienteChange,
                 onTelefonoChange = viewModel::onTelefonoClienteChange,
                 onEmailChange = viewModel::onEmailClienteChange,
-                onConfirmar = viewModel::onProcesarVenta
+                onConfirmar = {
+                    android.util.Log.d("VentaScreen", "🟡 onConfirmar lambda ejecutado")
+                    viewModel.onProcesarVenta()
+                }
             )
         }
     }

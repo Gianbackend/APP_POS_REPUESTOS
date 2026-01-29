@@ -3,6 +3,7 @@ plugins {
     id("org.jetbrains.kotlin.android")
     id("com.google.dagger.hilt.android")
     id("com.google.devtools.ksp")
+    id("com.google.gms.google-services")
 }
 
 android {
@@ -113,4 +114,20 @@ dependencies {
     androidTestImplementation("androidx.compose.ui:ui-test-junit4")
     debugImplementation("androidx.compose.ui:ui-tooling")
     debugImplementation("androidx.compose.ui:ui-test-manifest")
+    // Firebase BOM (maneja las versiones automáticamente)
+    implementation(platform("com.google.firebase:firebase-bom:32.7.0"))
+
+    // Firebase Functions
+    implementation("com.google.firebase:firebase-functions-ktx")
+
+    // Firebase Storage
+    implementation("com.google.firebase:firebase-storage-ktx")
+
+    // Firebase Auth (opcional)
+    implementation("com.google.firebase:firebase-auth-ktx")
+
+    // Coroutines para Firebase
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-play-services:1.7.3")
+
+
 }

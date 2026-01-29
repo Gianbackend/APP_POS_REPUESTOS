@@ -1,6 +1,7 @@
 package com.example.posapp
 
 import android.os.Bundle
+import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.layout.fillMaxSize
@@ -10,6 +11,8 @@ import androidx.compose.ui.Modifier
 import androidx.navigation.compose.rememberNavController
 import com.example.posapp.presentation.navigation.NavGraph
 import com.example.posapp.ui.theme.POSAppTheme
+import com.google.firebase.Firebase
+import com.google.firebase.app
 import dagger.hilt.android.AndroidEntryPoint
 
 @AndroidEntryPoint

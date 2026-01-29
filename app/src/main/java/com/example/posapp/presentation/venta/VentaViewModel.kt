@@ -3,42 +3,80 @@ package com.example.posapp.presentation.venta
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.posapp.data.repository.CarritoRepository
-import com.example.posapp.data.repository.VentaRepository  // ← NUEVO
+import com.example.posapp.data.repository.VentaRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import java.util.concurrent.atomic.AtomicBoolean
 import javax.inject.Inject
+import kotlinx.coroutines.flow.combine
 
 @HiltViewModel
 class VentaViewModel @Inject constructor(
     private val carritoRepository: CarritoRepository,
-    private val ventaRepository: VentaRepository  // ← NUEVO
+    private val ventaRepository: VentaRepository
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(VentaState())
     val state = _state.asStateFlow()
 
+    private var observerJob: Job? = null
+    private var hasNavigated = false
+    private val _shouldObserve = MutableStateFlow(true)
+    private val shouldObserve = _shouldObserve.asStateFlow()
+
     init {
+        // ✅ Log cada cambio de shouldObserve
+        viewModelScope.launch {
+            shouldObserve.collect { value ->
+                android.util.Log.d("VentaVM", "🟡🟡🟡 shouldObserve cambió a: $value")
+            }
+        }
         observarCarrito()
     }
 
     private fun observarCarrito() {
-        viewModelScope.launch {
-            carritoRepository.items.collect { items ->
-                val subtotal = items.sumOf { it.subtotal }
+        observerJob?.cancel()
 
-                _state.update {
-                    it.copy(
-                        items = items,
-                        subtotal = subtotal,
-                        total = it.calcularTotal()
-                    )
+        observerJob = viewModelScope.launch {
+            // ✅ Combinar ambos flows
+            combine(
+                carritoRepository.items,
+                shouldObserve
+            ) { items, shouldObs ->
+                items to shouldObs
+            }.collect { (items, shouldObs) ->
+                android.util.Log.d("VentaVM", "🟣🟣🟣 NUEVA VERSIÓN DEL OBSERVER")
+
+                android.util.Log.d("VentaVM", "Observer recibió: ${items.size} items, shouldObserve=$shouldObs, isProcessing=${_state.value.isProcessing}, ventaCompletada=${_state.value.ventaCompletada}, hasNavigated=$hasNavigated")
+
+                if (shouldObs &&
+                    !_state.value.isProcessing &&
+                    !_state.value.ventaCompletada &&
+                    !hasNavigated) {
+
+                    android.util.Log.d("VentaVM", "✅ Actualizando state con ${items.size} items")
+
+                    val subtotal = items.sumOf { it.subtotal }
+
+                    _state.update {
+                        it.copy(
+                            items = items,
+                            subtotal = subtotal,
+                            total = it.calcularTotal()
+                        )
+                    }
+                } else {
+                    android.util.Log.d("VentaVM", "🚫 Observer BLOQUEADO - shouldObserve=$shouldObs")
                 }
             }
         }
     }
+
+
 
     fun onActualizarCantidad(productoId: Long, nuevaCantidad: Int) {
         carritoRepository.actualizarCantidad(productoId, nuevaCantidad)
@@ -61,51 +99,62 @@ class VentaViewModel @Inject constructor(
         }
     }
 
-    // ACTUALIZADO: Ahora guarda en la BD
     fun onProcesarVenta() {
-        // Validar que haya items
+        android.util.Log.d("VentaVM", "🔵🔵🔵 onProcesarVenta INICIADO")
+
+        // ✅ BLOQUEAR INMEDIATAMENTE con getAndSet (atómico)
+        android.util.Log.d("VentaVM", "🔴🔴🔴 shouldObserve cambiado de ${_shouldObserve.value} a false")
+        _shouldObserve.value = false
+
         if (_state.value.items.isEmpty()) {
+            android.util.Log.d("VentaVM", "❌ Carrito vacío")
+            //_shouldObserve.value = true
             _state.update { it.copy(error = "El carrito está vacío") }
             return
         }
 
-        // Validar datos del cliente
         val clienteForm = _state.value.clienteForm
         if (clienteForm.nombre.isBlank() || clienteForm.documento.isBlank()) {
+            android.util.Log.d("VentaVM", "❌ Datos de cliente incompletos")
+           // _shouldObserve.value = true
             _state.update { it.copy(error = "Nombre y DNI son obligatorios") }
             return
         }
 
+        android.util.Log.d("VentaVM", "✅ Validaciones OK - Procesando venta")
+
         viewModelScope.launch {
+            val itemsSnapshot = _state.value.items.toList()
+
             _state.update { it.copy(isProcessing = true, error = null) }
 
-            // Procesar venta con datos del cliente
             val result = ventaRepository.procesarVenta(
-                items = _state.value.items,
+                items = itemsSnapshot,
                 metodoPago = _state.value.metodoPago,
-                clienteNombre = clienteForm.nombre,      // ← NUEVO
-                clienteDocumento = clienteForm.documento, // ← NUEVO
-                clienteTelefono = clienteForm.telefono,  // ← NUEVO
-                clienteEmail = clienteForm.email,        // ← NUEVO
+                clienteNombre = clienteForm.nombre,
+                clienteDocumento = clienteForm.documento,
+                clienteTelefono = clienteForm.telefono,
+                clienteEmail = clienteForm.email,
                 descuento = _state.value.descuento,
                 impuesto = _state.value.impuesto
             )
 
             if (result.isSuccess) {
                 val ventaId = result.getOrNull()
-
-                carritoRepository.limpiarCarrito()
-
+                android.util.Log.d("VentaVM", "✅ Venta procesada exitosamente, ventaId=$ventaId")
                 _state.update {
                     it.copy(
-                        isProcessing = false,
+                        isProcessing = true,
                         ventaCompletada = true,
                         ventaId = ventaId,
-                        mostrarFormCliente = false  // ← Cerrar el diálogo
+                        mostrarFormCliente = false,
+                        items = itemsSnapshot
                     )
                 }
+                android.util.Log.d("VentaVM", "✅ State actualizado con ventaCompletada=true")
             } else {
                 val error = result.exceptionOrNull()?.message ?: "Error al procesar la venta"
+                //_shouldObserve.value = true  // ✅ Reactivar en caso de error
 
                 _state.update {
                     it.copy(
@@ -117,20 +166,43 @@ class VentaViewModel @Inject constructor(
         }
     }
 
-    fun onResetVentaCompletada() {
-        _state.update { it.copy(ventaCompletada = false, ventaId = null) }
+    fun onPreNavigate() {
+        hasNavigated = true
+        observerJob?.cancel()
     }
-    // Mostrar formulario de cliente
+
+    fun onResetVentaCompletada() {
+        android.util.Log.d("VentaVM", "🔵 onResetVentaCompletada INICIADO")
+
+        carritoRepository.limpiarCarrito()
+
+        _state.update {
+            it.copy(
+                isProcessing = false,
+                ventaCompletada = false,
+                ventaId = null,
+                items = emptyList(),
+                clienteForm = ClienteFormState()
+            )
+        }
+
+        hasNavigated = false
+
+        android.util.Log.d("VentaVM", "🟢 Cambiando shouldObserve a true en onResetVentaCompletada")
+        _shouldObserve.value = true
+        observarCarrito()
+    }
+
+
     fun onMostrarFormCliente() {
+        android.util.Log.d("VentaVM", "📋 Mostrando formulario de cliente")
         _state.update { it.copy(mostrarFormCliente = true) }
     }
 
-    // Ocultar formulario
     fun onOcultarFormCliente() {
         _state.update { it.copy(mostrarFormCliente = false) }
     }
 
-    // Actualizar nombre
     fun onNombreClienteChange(nombre: String) {
         _state.update {
             it.copy(
@@ -139,7 +211,6 @@ class VentaViewModel @Inject constructor(
         }
     }
 
-    // Actualizar documento
     fun onDocumentoClienteChange(documento: String) {
         _state.update {
             it.copy(
@@ -148,7 +219,6 @@ class VentaViewModel @Inject constructor(
         }
     }
 
-    // Actualizar teléfono
     fun onTelefonoClienteChange(telefono: String) {
         _state.update {
             it.copy(
@@ -157,7 +227,6 @@ class VentaViewModel @Inject constructor(
         }
     }
 
-    // Actualizar email
     fun onEmailClienteChange(email: String) {
         _state.update {
             it.copy(
@@ -166,5 +235,8 @@ class VentaViewModel @Inject constructor(
         }
     }
 
-
+    override fun onCleared() {
+        super.onCleared()
+        observerJob?.cancel()
+    }
 }

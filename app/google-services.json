@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "1018168952575",
+    "project_id": "posrepuestos",
+    "storage_bucket": "posrepuestos.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1018168952575:android:b1684a75ed1ea798422eca",
+        "android_client_info": {
+          "package_name": "com.example.posapp"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCccyPkztSiBKReAdyWPwzcMcrAUQCGawc"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
