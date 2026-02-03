@@ -12,6 +12,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.example.posapp.presentation.productos.components.ProductoCard
@@ -71,7 +72,7 @@ fun ProductosScreen(
                 onQueryChange = viewModel::onSearchQueryChange,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(16.dp)
+                    .padding(horizontal = 12.dp, vertical = 4.dp)
             )
 
             FilterChips(
@@ -151,18 +152,25 @@ private fun SearchBar(
     OutlinedTextField(
         value = query,
         onValueChange = onQueryChange,
-        placeholder = { Text("Buscar por nombre, código, marca...") },
+        label = { Text("Buscar por material o código...") },  // ← CAMBIA placeholder por label
         leadingIcon = {
-            Icon(Icons.Default.Search, contentDescription = "Buscar")
+            Icon(
+                Icons.Default.Search,
+                contentDescription = "Buscar",
+                modifier = Modifier.size(18.dp)
+            )
         },
-        modifier = modifier,
-        singleLine = true
+        modifier = modifier
+            .height(56.dp)  // ← Aumenta a 56dp para el label
+            .fillMaxWidth(),
+        singleLine = true,
+        textStyle = MaterialTheme.typography.bodyMedium
     )
+
 }
 
-@OptIn(ExperimentalMaterial3Api::class)  // ← Para los FilterChips
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-
 private fun FilterChips(
     categorias: List<com.example.posapp.domain.model.Categoria>,
     selectedCategoriaId: Long?,
@@ -172,12 +180,13 @@ private fun FilterChips(
     onClearFilters: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    Column(modifier = modifier) {
-        // Primera fila: Stock Bajo + Limpiar filtros
-        Row(
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-            modifier = Modifier.fillMaxWidth()
-        ) {
+    // ✅ TODO en un solo LazyRow
+    LazyRow(
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        modifier = modifier.fillMaxWidth()
+    ) {
+        // ✅ Stock Bajo primero
+        item {
             FilterChip(
                 selected = showStockBajo,
                 onClick = onToggleStockBajo,
@@ -186,8 +195,11 @@ private fun FilterChips(
                     { Icon(Icons.Default.Warning, contentDescription = null, modifier = Modifier.size(16.dp)) }
                 } else null
             )
+        }
 
-            if (selectedCategoriaId != null || showStockBajo) {
+        // ✅ Limpiar filtros
+        if (selectedCategoriaId != null || showStockBajo) {
+            item {
                 FilterChip(
                     selected = false,
                     onClick = onClearFilters,
@@ -196,29 +208,19 @@ private fun FilterChips(
             }
         }
 
-        // Segunda fila: Categorías con scroll horizontal
-        if (categorias.isNotEmpty()) {
-            Spacer(modifier = Modifier.height(8.dp))
-
-            // CAMBIO: LazyRow en vez de Row para scroll horizontal
-            LazyRow(
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                items(categorias) { categoria ->
-                    FilterChip(
-                        selected = selectedCategoriaId == categoria.id,
-                        onClick = {
-                            if (selectedCategoriaId == categoria.id) {
-                                onCategoriaSelected(null)
-                            } else {
-                                onCategoriaSelected(categoria.id)
-                            }
-                        },
-                        label = { Text(categoria.nombre) }
-                    )
-                }
-            }
+        // ✅ Categorías
+        items(categorias) { categoria ->
+            FilterChip(
+                selected = selectedCategoriaId == categoria.id,
+                onClick = {
+                    if (selectedCategoriaId == categoria.id) {
+                        onCategoriaSelected(null)
+                    } else {
+                        onCategoriaSelected(categoria.id)
+                    }
+                },
+                label = { Text(categoria.nombre) }
+            )
         }
     }
 }

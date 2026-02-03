@@ -1,5 +1,11 @@
 package com.example.posapp.presentation.venta
 
+import android.content.Context
+import com.example.posapp.data.pdf.TicketPdfGenerator
+import com.example.posapp.data.firebase.FirebaseStorageManager
+import dagger.hilt.android.qualifiers.ApplicationContext
+import java.text.SimpleDateFormat
+import java.util.*
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.posapp.data.repository.CarritoRepository
@@ -17,7 +23,9 @@ import kotlinx.coroutines.flow.combine
 @HiltViewModel
 class VentaViewModel @Inject constructor(
     private val carritoRepository: CarritoRepository,
-    private val ventaRepository: VentaRepository
+    private val ventaRepository: VentaRepository,
+    private val firebaseStorageManager: FirebaseStorageManager,
+    @ApplicationContext private val context: Context
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(VentaState())
@@ -102,13 +110,10 @@ class VentaViewModel @Inject constructor(
     fun onProcesarVenta() {
         android.util.Log.d("VentaVM", "🔵🔵🔵 onProcesarVenta INICIADO")
 
-        // ✅ BLOQUEAR INMEDIATAMENTE con getAndSet (atómico)
-        android.util.Log.d("VentaVM", "🔴🔴🔴 shouldObserve cambiado de ${_shouldObserve.value} a false")
         _shouldObserve.value = false
 
         if (_state.value.items.isEmpty()) {
             android.util.Log.d("VentaVM", "❌ Carrito vacío")
-            //_shouldObserve.value = true
             _state.update { it.copy(error = "El carrito está vacío") }
             return
         }
@@ -116,8 +121,14 @@ class VentaViewModel @Inject constructor(
         val clienteForm = _state.value.clienteForm
         if (clienteForm.nombre.isBlank() || clienteForm.documento.isBlank()) {
             android.util.Log.d("VentaVM", "❌ Datos de cliente incompletos")
-           // _shouldObserve.value = true
             _state.update { it.copy(error = "Nombre y DNI son obligatorios") }
+            return
+        }
+
+        // ✅ Validar email obligatorio
+        if (clienteForm.email.isBlank()) {
+            android.util.Log.d("VentaVM", "❌ Email es obligatorio")
+            _state.update { it.copy(error = "El email es obligatorio para enviar el ticket") }
             return
         }
 
@@ -128,6 +139,7 @@ class VentaViewModel @Inject constructor(
 
             _state.update { it.copy(isProcessing = true, error = null) }
 
+            // 1️⃣ Procesar venta en Room
             val result = ventaRepository.procesarVenta(
                 items = itemsSnapshot,
                 metodoPago = _state.value.metodoPago,
@@ -142,6 +154,51 @@ class VentaViewModel @Inject constructor(
             if (result.isSuccess) {
                 val ventaId = result.getOrNull()
                 android.util.Log.d("VentaVM", "✅ Venta procesada exitosamente, ventaId=$ventaId")
+
+                // 2️⃣ Generar PDF
+                try {
+                    val numeroVenta = "V-${SimpleDateFormat("yyyy", Locale.getDefault()).format(Date())}-${String.format("%03d", ventaId)}"
+                    val fecha = Date()
+
+                    val pdfGenerator = TicketPdfGenerator(context)
+                    val pdfFile = pdfGenerator.generarTicket(
+                        numeroVenta = numeroVenta,
+                        fecha = fecha,
+                        metodoPago = _state.value.metodoPago,
+                        clienteNombre = clienteForm.nombre,
+                        clienteDocumento = clienteForm.documento,
+                        clienteTelefono = clienteForm.telefono,
+                        clienteEmail = clienteForm.email,
+                        items = itemsSnapshot,
+                        subtotalSinIVA = _state.value.calcularSubtotalSinIVA(),
+                        montoIVA = _state.value.calcularMontoIVA(),
+                        total = _state.value.calcularTotal(),
+                        impuestoPorcentaje = _state.value.impuesto
+                    )
+
+                    android.util.Log.d("VentaVM", "✅ PDF generado: ${pdfFile.absolutePath}")
+
+                    // 3️⃣ Subir a Firebase Storage
+                    val uploadResult = firebaseStorageManager.subirTicket(
+                        file = pdfFile,
+                        numeroVenta = numeroVenta,
+                        clienteEmail = clienteForm.email,
+                        total = _state.value.calcularTotal(),
+                        fecha = SimpleDateFormat("dd/MM/yyyy HH:mm", Locale.getDefault()).format(fecha)
+                    )
+
+                    if (uploadResult.isSuccess) {
+                        android.util.Log.d("VentaVM", "✅ PDF subido a Storage, URL: ${uploadResult.getOrNull()}")
+                        android.util.Log.d("VentaVM", "📧 Cloud Function enviará el email automáticamente")
+                    } else {
+                        android.util.Log.e("VentaVM", "❌ Error al subir PDF: ${uploadResult.exceptionOrNull()?.message}")
+                    }
+
+                } catch (e: Exception) {
+                    android.util.Log.e("VentaVM", "❌ Error al generar/subir PDF: ${e.message}")
+                }
+
+                // 4️⃣ Actualizar state y mostrar pantalla de confirmación
                 _state.update {
                     it.copy(
                         isProcessing = true,
@@ -152,10 +209,9 @@ class VentaViewModel @Inject constructor(
                     )
                 }
                 android.util.Log.d("VentaVM", "✅ State actualizado con ventaCompletada=true")
+
             } else {
                 val error = result.exceptionOrNull()?.message ?: "Error al procesar la venta"
-                //_shouldObserve.value = true  // ✅ Reactivar en caso de error
-
                 _state.update {
                     it.copy(
                         isProcessing = false,
@@ -165,6 +221,7 @@ class VentaViewModel @Inject constructor(
             }
         }
     }
+
 
     fun onPreNavigate() {
         hasNavigated = true

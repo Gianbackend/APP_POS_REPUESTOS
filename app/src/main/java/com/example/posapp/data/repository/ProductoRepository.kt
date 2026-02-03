@@ -61,6 +61,18 @@ class ProductoRepository @Inject constructor(
             }
     }
 
+
+    fun getProductosStockBajoPorCategoria(categoriaId: Long): Flow<List<Producto>> {
+        return productoDao.getStockBajoPorCategoria(categoriaId)
+            .map { entities ->
+                entities.map { entity ->
+                    val categoria = categoriaDao.getById(entity.categoriaId)
+                    entity.toDomain(categoria?.nombre ?: "Sin categoría")
+                }
+            }
+    }
+
+
     // Buscar producto por código de barras
     suspend fun getProductoByCodigo(codigo: String): Producto? {
         val entity = productoDao.getByCodigo(codigo)

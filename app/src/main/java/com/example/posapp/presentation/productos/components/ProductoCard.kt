@@ -13,7 +13,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.posapp.domain.model.Producto
 
-@OptIn(ExperimentalMaterial3Api::class)  // ← Agregar esta línea
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ProductoCard(
     producto: Producto,
@@ -25,11 +25,10 @@ fun ProductoCard(
         modifier = modifier.fillMaxWidth(),
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
     ) {
-        // ... resto del código igual
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(16.dp),
+                .padding(12.dp),  // ← 16 → 12
             verticalAlignment = Alignment.CenterVertically
         ) {
             Column(
@@ -37,31 +36,31 @@ fun ProductoCard(
             ) {
                 Text(
                     text = producto.codigo,
-                    fontSize = 12.sp,
+                    fontSize = 11.sp,  // ← 12 → 11
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
 
-                Spacer(modifier = Modifier.height(4.dp))
+                Spacer(modifier = Modifier.height(2.dp))  // ← 4 → 2
 
                 Text(
                     text = producto.nombre,
-                    fontSize = 16.sp,
+                    fontSize = 15.sp,  // ← 16 → 15
                     fontWeight = FontWeight.Bold,
                     maxLines = 2,
                     overflow = TextOverflow.Ellipsis
                 )
 
-                Spacer(modifier = Modifier.height(4.dp))
+                Spacer(modifier = Modifier.height(2.dp))  // ← 4 → 2
 
                 Text(
                     text = "${producto.marca} - ${producto.modelo}",
-                    fontSize = 14.sp,
+                    fontSize = 13.sp,  // ← 14 → 13
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
 
-                Spacer(modifier = Modifier.height(4.dp))
+                Spacer(modifier = Modifier.height(3.dp))  // ← 4 → 3
 
                 Surface(
                     color = MaterialTheme.colorScheme.secondaryContainer,
@@ -69,25 +68,25 @@ fun ProductoCard(
                 ) {
                     Text(
                         text = producto.categoriaNombre,
-                        fontSize = 12.sp,
-                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                        fontSize = 11.sp,  // ← 12 → 11
+                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)  // ← Reducido
                     )
                 }
             }
 
-            Spacer(modifier = Modifier.width(16.dp))
+            Spacer(modifier = Modifier.width(12.dp))  // ← 16 → 12
 
             Column(
                 horizontalAlignment = Alignment.End
             ) {
                 Text(
                     text = "$ ${String.format("%.2f", producto.precio)}",
-                    fontSize = 18.sp,
+                    fontSize = 17.sp,  // ← 18 → 17
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.primary
                 )
 
-                Spacer(modifier = Modifier.height(8.dp))
+                Spacer(modifier = Modifier.height(6.dp))  // ← 8 → 6
 
                 Row(
                     verticalAlignment = Alignment.CenterVertically
@@ -97,14 +96,14 @@ fun ProductoCard(
                             imageVector = Icons.Default.Warning,
                             contentDescription = "Stock bajo",
                             tint = MaterialTheme.colorScheme.error,
-                            modifier = Modifier.size(16.dp)
+                            modifier = Modifier.size(14.dp)  // ← 16 → 14
                         )
-                        Spacer(modifier = Modifier.width(4.dp))
+                        Spacer(modifier = Modifier.width(3.dp))  // ← 4 → 3
                     }
 
                     Text(
                         text = "Stock: ${producto.stock}",
-                        fontSize = 14.sp,
+                        fontSize = 13.sp,  // ← 14 → 13
                         color = if (producto.stockBajo) {
                             MaterialTheme.colorScheme.error
                         } else {
@@ -114,10 +113,10 @@ fun ProductoCard(
                 }
 
                 if (producto.ubicacion != null) {
-                    Spacer(modifier = Modifier.height(4.dp))
+                    Spacer(modifier = Modifier.height(3.dp))  // ← 4 → 3
                     Text(
                         text = "📍 ${producto.ubicacion}",
-                        fontSize = 12.sp,
+                        fontSize = 11.sp,  // ← 12 → 11
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }

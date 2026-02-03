@@ -55,4 +55,16 @@ interface ProductoDao {
 
     @Query("UPDATE productos SET stock = stock + :cantidad WHERE id = :id")
     suspend fun aumentarStock(id: Long, cantidad: Int)
+
+    @Query("""
+    SELECT * FROM productos 
+    WHERE activo = 1 
+    AND categoriaId = :categoriaId 
+    AND stock <= stockMinimo 
+    ORDER BY nombre ASC
+""")
+    fun getStockBajoPorCategoria(categoriaId: Long): Flow<List<ProductoEntity>>
+
+
+
 }

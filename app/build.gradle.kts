@@ -99,12 +99,24 @@ dependencies {
 
     // Coroutines
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3")
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-play-services:1.7.3")
 
     // Coil (imágenes)
     implementation("io.coil-kt:coil-compose:2.5.0")
 
     // Gson
     implementation("com.google.code.gson:gson:2.10.1")
+
+    // Firebase BOM (DEBE IR PRIMERO)
+    implementation(platform("com.google.firebase:firebase-bom:32.7.0"))
+
+    // Firebase (las versiones las maneja el BOM)
+    implementation("com.google.firebase:firebase-storage-ktx")
+    implementation("com.google.firebase:firebase-functions-ktx")
+    implementation("com.google.firebase:firebase-auth-ktx")
+
+    // iText para generar PDFs
+    implementation("com.itextpdf:itext7-core:7.2.5")
 
     // Testing
     testImplementation("junit:junit:4.13.2")
@@ -114,20 +126,11 @@ dependencies {
     androidTestImplementation("androidx.compose.ui:ui-test-junit4")
     debugImplementation("androidx.compose.ui:ui-tooling")
     debugImplementation("androidx.compose.ui:ui-test-manifest")
-    // Firebase BOM (maneja las versiones automáticamente)
+    // Firebase
     implementation(platform("com.google.firebase:firebase-bom:32.7.0"))
-
-    // Firebase Functions
-    implementation("com.google.firebase:firebase-functions-ktx")
-
-    // Firebase Storage
+    implementation("com.google.firebase:firebase-firestore-ktx")
     implementation("com.google.firebase:firebase-storage-ktx")
 
-    // Firebase Auth (opcional)
-    implementation("com.google.firebase:firebase-auth-ktx")
-
-    // Coroutines para Firebase
-    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-play-services:1.7.3")
-
-
+    // Coil para imágenes
+    implementation("io.coil-kt:coil-compose:2.5.0")
 }

@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.room.Room
 import androidx.room.RoomDatabase
 import androidx.sqlite.db.SupportSQLiteDatabase
+import com.example.posapp.data.firebase.FirebaseStorageManager
 import com.example.posapp.data.local.dao.CategoriaDao
 import com.example.posapp.data.local.dao.ClienteDao
 import com.example.posapp.data.local.dao.DetalleVentaDao
@@ -80,6 +81,14 @@ object DatabaseModule {
     fun provideDetalleVentaDao(database: POSDatabase): DetalleVentaDao {
         return database.detalleVentaDao()
     }
+    // ✅ NUEVO: Provider para Firebase Storage
+    @Provides
+    @Singleton
+    fun provideFirebaseStorageManager(): FirebaseStorageManager {
+        return FirebaseStorageManager()
+    }
+
+
 
     private suspend fun insertarDatosIniciales(context: Context) {
         val db = Room.databaseBuilder(

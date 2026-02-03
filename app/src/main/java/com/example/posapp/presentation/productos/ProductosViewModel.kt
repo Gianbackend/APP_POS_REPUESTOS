@@ -50,19 +50,28 @@ class ProductosViewModel @Inject constructor(
                 _state.update { it.copy(isLoading = true) }
 
                 val productosFlow = when {
-                    _state.value.showStockBajo -> {
-                        productoRepository.getProductosStockBajo()
-                    }
-                    _state.value.selectedCategoriaId != null -> {
-                        productoRepository.getProductosByCategoria(_state.value.selectedCategoriaId!!)
-                    }
+                    // Caso 1: Solo búsqueda
                     _state.value.searchQuery.isNotEmpty() -> {
                         productoRepository.buscarProductos(_state.value.searchQuery)
                     }
+                    // ✅ NUEVO: Stock Bajo + Categoría (AND)
+                    _state.value.showStockBajo && _state.value.selectedCategoriaId != null -> {
+                        productoRepository.getProductosStockBajoPorCategoria(_state.value.selectedCategoriaId!!)
+                    }
+                    // Caso 3: Solo Stock Bajo
+                    _state.value.showStockBajo -> {
+                        productoRepository.getProductosStockBajo()
+                    }
+                    // Caso 4: Solo Categoría
+                    _state.value.selectedCategoriaId != null -> {
+                        productoRepository.getProductosByCategoria(_state.value.selectedCategoriaId!!)
+                    }
+                    // Caso 5: Sin filtros
                     else -> {
                         productoRepository.getAllProductos()
                     }
                 }
+
 
                 productosFlow
                     .catch { e ->
@@ -98,7 +107,7 @@ class ProductosViewModel @Inject constructor(
             it.copy(
                 selectedCategoriaId = categoriaId,
                 searchQuery = "",
-                showStockBajo = false,
+                //showStockBajo = false,
                 isLoading = true
             )
         }
@@ -109,7 +118,7 @@ class ProductosViewModel @Inject constructor(
         _state.update {
             it.copy(
                 showStockBajo = !it.showStockBajo,
-                selectedCategoriaId = null,
+                //selectedCategoriaId = null,
                 searchQuery = "",
                 isLoading = true
             )
