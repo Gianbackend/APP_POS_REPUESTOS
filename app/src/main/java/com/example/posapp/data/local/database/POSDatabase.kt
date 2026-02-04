@@ -10,12 +10,14 @@ import com.example.posapp.data.local.dao.DetalleVentaDao
 import com.example.posapp.data.local.dao.ProductoDao
 import com.example.posapp.data.local.dao.UsuarioDao
 import com.example.posapp.data.local.dao.VentaDao
+import com.example.posapp.data.local.dao.VentaPendienteDao
 import com.example.posapp.data.local.entities.CategoriaEntity
 import com.example.posapp.data.local.entities.ClienteEntity
 import com.example.posapp.data.local.entities.DetalleVentaEntity
 import com.example.posapp.data.local.entities.ProductoEntity
 import com.example.posapp.data.local.entities.UsuarioEntity
 import com.example.posapp.data.local.entities.VentaEntity
+import com.example.posapp.data.local.entity.VentaPendienteEntity
 
 
 @Database(
@@ -25,7 +27,8 @@ import com.example.posapp.data.local.entities.VentaEntity
         ProductoEntity::class,
         ClienteEntity::class,
         VentaEntity::class,
-        DetalleVentaEntity::class
+        DetalleVentaEntity::class,
+        VentaPendienteEntity::class
     ],
     version = 2,
     exportSchema = false
@@ -38,6 +41,7 @@ abstract class POSDatabase : RoomDatabase() {
     abstract fun clienteDao(): ClienteDao
     abstract fun ventaDao(): VentaDao
     abstract fun detalleVentaDao(): DetalleVentaDao
+    abstract fun ventaPendienteDao(): VentaPendienteDao
 
     companion object {
         const val DATABASE_NAME = "pos_database"
