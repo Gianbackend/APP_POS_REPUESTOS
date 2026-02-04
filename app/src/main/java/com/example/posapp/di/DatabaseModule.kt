@@ -48,6 +48,9 @@ object DatabaseModule {
                     }
                 }
             })
+            // 🆕 AGREGAR: Migración para actualizar BD existente
+            .addMigrations(POSDatabase.MIGRATION_1_2)
+            // 🆕 CAMBIO: Mantener fallback por si falla la migración
             .fallbackToDestructiveMigration()
             .build()
     }

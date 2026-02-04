@@ -2,6 +2,8 @@ package com.example.posapp.data.local.database
 
 import androidx.room.Database
 import androidx.room.RoomDatabase
+import androidx.room.migration.Migration
+import androidx.sqlite.db.SupportSQLiteDatabase
 import com.example.posapp.data.local.dao.CategoriaDao
 import com.example.posapp.data.local.dao.ClienteDao
 import com.example.posapp.data.local.dao.DetalleVentaDao
@@ -25,7 +27,7 @@ import com.example.posapp.data.local.entities.VentaEntity
         VentaEntity::class,
         DetalleVentaEntity::class
     ],
-    version = 1,
+    version = 2,
     exportSchema = false
 )
 abstract class POSDatabase : RoomDatabase() {
@@ -39,5 +41,26 @@ abstract class POSDatabase : RoomDatabase() {
 
     companion object {
         const val DATABASE_NAME = "pos_database"
+
+        // 🆕 MIGRACIÓN 1 → 2: Agregar campos de sincronización
+        val MIGRATION_1_2 = object : Migration(1, 2) {
+            override fun migrate(database: SupportSQLiteDatabase) {
+                // Agregar columnas para sincronización con Firebase
+                database.execSQL("""
+                    ALTER TABLE productos 
+                    ADD COLUMN firebaseId TEXT
+                """)
+
+                database.execSQL("""
+                    ALTER TABLE productos 
+                    ADD COLUMN sincronizado INTEGER NOT NULL DEFAULT 0
+                """)
+
+                database.execSQL("""
+                    ALTER TABLE productos 
+                    ADD COLUMN ultimaSincronizacion INTEGER
+                """)
+            }
+        }
     }
 }

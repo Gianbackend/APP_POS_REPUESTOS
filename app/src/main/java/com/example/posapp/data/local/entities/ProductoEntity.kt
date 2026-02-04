@@ -36,7 +36,11 @@ data class ProductoEntity(
     val imagenUrl: String? = null,
     val ubicacion: String? = null,
     val activo: Boolean = true,
-    val fechaCreacion: Long = System.currentTimeMillis()
+    val fechaCreacion: Long = System.currentTimeMillis(),
+    // 🆕 NUEVOS CAMPOS PARA SINCRONIZACIÓN
+    val firebaseId: String? = null,           // ID en Firebase
+    val sincronizado: Boolean = false,        // ¿Ya está en la nube?
+    val ultimaSincronizacion: Long? = null    // Timestamp última sync
 ) {
     fun toDomain(categoriaNombre: String = "") = Producto(
         id = id,
@@ -53,5 +57,21 @@ data class ProductoEntity(
         imagenUrl = imagenUrl,
         ubicacion = ubicacion,
         activo = activo
+    )
+    // 🆕 NUEVO: Convertir a Firebase
+    fun toFirebase() = hashMapOf(
+        "codigo" to codigo,
+        "nombre" to nombre,
+        "descripcion" to descripcion,
+        "marca" to marca,
+        "modelo" to modelo,
+        "precio" to precio,
+        "stock" to stock,
+        "stockMinimo" to stockMinimo,
+        "categoriaId" to categoriaId,
+        "imagenUrl" to imagenUrl,
+        "ubicacion" to ubicacion,
+        "activo" to activo,
+        "fechaCreacion" to fechaCreacion
     )
 }
