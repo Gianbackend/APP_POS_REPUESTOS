@@ -7,15 +7,31 @@ import kotlinx.coroutines.flow.Flow
 @Dao
 interface VentaPendienteDao {
 
-    @Query("SELECT * FROM ventas_pendientes WHERE sincronizado = 0 ORDER BY fecha ASC")
-    fun getVentasPendientes(): Flow<List<VentaPendienteEntity>>
+    // ✅ AGREGAR: Método insert (alias)
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insert(venta: VentaPendienteEntity): Long
 
-    @Query("SELECT * FROM ventas_pendientes WHERE sincronizado = 0 ORDER BY fecha ASC")
-    suspend fun getVentasPendientesList(): List<VentaPendienteEntity>
+    // ✅ AGREGAR: Método update (alias)
+    @Update
+    suspend fun update(venta: VentaPendienteEntity)
 
+    // ✅ AGREGAR: Método getById
+    @Query("SELECT * FROM ventas_pendientes WHERE id = :id")
+    suspend fun getById(id: Long): VentaPendienteEntity?
+
+    // ✅ Cambiar: getVentasPendientes debe retornar List, no Flow
+    @Query("SELECT * FROM ventas_pendientes WHERE sincronizado = 0 ORDER BY fecha ASC")
+    suspend fun getVentasPendientes(): List<VentaPendienteEntity>
+
+    // ✅ AGREGAR: observarVentasPendientes (Flow)
+    @Query("SELECT * FROM ventas_pendientes WHERE sincronizado = 0 ORDER BY fecha ASC")
+    fun observarVentasPendientes(): Flow<List<VentaPendienteEntity>>
+
+    // ✅ Cambiar: contarVentasPendientes debe retornar Int, no Flow
     @Query("SELECT COUNT(*) FROM ventas_pendientes WHERE sincronizado = 0")
-    fun contarVentasPendientes(): Flow<Int>
+    suspend fun contarVentasPendientes(): Int
 
+    // ✅ Mantener tus métodos originales
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertVentaPendiente(venta: VentaPendienteEntity): Long
 
@@ -36,4 +52,20 @@ interface VentaPendienteDao {
 
     @Query("SELECT * FROM ventas_pendientes ORDER BY fecha DESC")
     fun getAllVentas(): Flow<List<VentaPendienteEntity>>
+
+    // ✅ AGREGAR: Métodos adicionales útiles
+    @Query("""
+        SELECT * FROM ventas_pendientes 
+        WHERE sincronizado = 0 
+        AND intentosSincronizacion < :maxReintentos
+        ORDER BY fecha DESC
+    """)
+    suspend fun getVentasConError(maxReintentos: Int): List<VentaPendienteEntity>
+
+    @Query("""
+        DELETE FROM ventas_pendientes 
+        WHERE sincronizado = 1 
+        AND fecha < :timestamp
+    """)
+    suspend fun eliminarSincronizadasAntiguas(timestamp: Long): Int
 }
