@@ -133,4 +133,7 @@ dependencies {
 
     // Coil para imágenes
     implementation("io.coil-kt:coil-compose:2.5.0")
+
+    // Gson para serialización JSON
+    implementation("com.google.code.gson:gson:2.10.1")
 }

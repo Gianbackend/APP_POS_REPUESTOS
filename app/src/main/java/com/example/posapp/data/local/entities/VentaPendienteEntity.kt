@@ -18,7 +18,7 @@ data class VentaPendienteEntity(
     val clienteDocumento: String? = null,
 
     // Productos de la venta (JSON)
-    val productosJson: String,          // Lista de productos serializada
+    val productosJson: String,          // Lista de ProductoVentaDto serializada
 
     // Control de sincronización
     val intentosSincronizacion: Int = 0,
