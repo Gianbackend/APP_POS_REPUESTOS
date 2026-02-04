@@ -21,7 +21,7 @@ class ProductosViewModel @Inject constructor(
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(ProductosState())
-    val state = _state.asStateFlow()
+    val state = _state.asStateFlow() //1
 
     private var loadProductosJob: Job? = null
 
