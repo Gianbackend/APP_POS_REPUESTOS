@@ -13,10 +13,11 @@ import com.example.posapp.data.repository.VentaRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import java.util.concurrent.atomic.AtomicBoolean
 import javax.inject.Inject
 import kotlinx.coroutines.flow.combine
 
@@ -36,8 +37,15 @@ class VentaViewModel @Inject constructor(
     private val _shouldObserve = MutableStateFlow(true)
     private val shouldObserve = _shouldObserve.asStateFlow()
 
+    // 🆕 Observar ventas pendientes (opcional - para mostrar badge)
+    val ventasPendientes = ventaRepository.observarVentasPendientes()
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5000),
+            initialValue = emptyList()
+        )
+
     init {
-        // ✅ Log cada cambio de shouldObserve
         viewModelScope.launch {
             shouldObserve.collect { value ->
                 android.util.Log.d("VentaVM", "🟡🟡🟡 shouldObserve cambió a: $value")
@@ -50,7 +58,6 @@ class VentaViewModel @Inject constructor(
         observerJob?.cancel()
 
         observerJob = viewModelScope.launch {
-            // ✅ Combinar ambos flows
             combine(
                 carritoRepository.items,
                 shouldObserve
@@ -83,8 +90,6 @@ class VentaViewModel @Inject constructor(
             }
         }
     }
-
-
 
     fun onActualizarCantidad(productoId: Long, nuevaCantidad: Int) {
         carritoRepository.actualizarCantidad(productoId, nuevaCantidad)
@@ -125,7 +130,6 @@ class VentaViewModel @Inject constructor(
             return
         }
 
-        // ✅ Validar email obligatorio
         if (clienteForm.email.isBlank()) {
             android.util.Log.d("VentaVM", "❌ Email es obligatorio")
             _state.update { it.copy(error = "El email es obligatorio para enviar el ticket") }
@@ -139,7 +143,6 @@ class VentaViewModel @Inject constructor(
 
             _state.update { it.copy(isProcessing = true, error = null) }
 
-            // 1️⃣ Procesar venta en Room
             val result = ventaRepository.procesarVenta(
                 items = itemsSnapshot,
                 metodoPago = _state.value.metodoPago,
@@ -155,7 +158,6 @@ class VentaViewModel @Inject constructor(
                 val ventaId = result.getOrNull()
                 android.util.Log.d("VentaVM", "✅ Venta procesada exitosamente, ventaId=$ventaId")
 
-                // 2️⃣ Generar PDF
                 try {
                     val numeroVenta = "V-${SimpleDateFormat("yyyy", Locale.getDefault()).format(Date())}-${String.format("%03d", ventaId)}"
                     val fecha = Date()
@@ -178,7 +180,6 @@ class VentaViewModel @Inject constructor(
 
                     android.util.Log.d("VentaVM", "✅ PDF generado: ${pdfFile.absolutePath}")
 
-                    // 3️⃣ Subir a Firebase Storage
                     val uploadResult = firebaseStorageManager.subirTicket(
                         file = pdfFile,
                         numeroVenta = numeroVenta,
@@ -198,7 +199,6 @@ class VentaViewModel @Inject constructor(
                     android.util.Log.e("VentaVM", "❌ Error al generar/subir PDF: ${e.message}")
                 }
 
-                // 4️⃣ Actualizar state y mostrar pantalla de confirmación
                 _state.update {
                     it.copy(
                         isProcessing = true,
@@ -221,7 +221,6 @@ class VentaViewModel @Inject constructor(
             }
         }
     }
-
 
     fun onPreNavigate() {
         hasNavigated = true
@@ -249,7 +248,6 @@ class VentaViewModel @Inject constructor(
         _shouldObserve.value = true
         observarCarrito()
     }
-
 
     fun onMostrarFormCliente() {
         android.util.Log.d("VentaVM", "📋 Mostrando formulario de cliente")
