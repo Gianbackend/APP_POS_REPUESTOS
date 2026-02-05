@@ -18,6 +18,7 @@ import com.google.gson.Gson
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.tasks.await
+import kotlinx.coroutines.withTimeoutOrNull
 import java.text.SimpleDateFormat
 import java.util.*
 import javax.inject.Inject
@@ -52,6 +53,8 @@ class VentaRepository @Inject constructor(
         impuesto: Double = 18.0
     ): Result<Long> {
         return try {
+            Log.d(TAG, "🟢 Iniciando procesarVenta")
+
             val session = userPreferences.userSession.first()
             val usuarioId = session.userId
 
@@ -86,6 +89,8 @@ class VentaRepository @Inject constructor(
 
             val numeroVenta = generarNumeroVenta()
 
+            Log.d(TAG, "🟢 Guardando venta en Room")
+
             val ventaEntity = VentaEntity(
                 numeroVenta = numeroVenta,
                 usuarioId = usuarioId,
@@ -101,7 +106,9 @@ class VentaRepository @Inject constructor(
             )
 
             val ventaId = ventaDao.insert(ventaEntity)
+            Log.d(TAG, "✅ Venta guardada en Room con ID: $ventaId")
 
+            Log.d(TAG, "🟢 Guardando detalles de venta")
             val detalles = items.map { item ->
                 DetalleVentaEntity(
                     ventaId = ventaId,
@@ -112,21 +119,34 @@ class VentaRepository @Inject constructor(
                 )
             }
             detalleVentaDao.insertAll(detalles)
+            Log.d(TAG, "✅ Detalles guardados")
 
+            Log.d(TAG, "🟢 Reduciendo stock")
             items.forEach { item ->
                 productoDao.reducirStock(item.producto.id, item.cantidad)
             }
+            Log.d(TAG, "✅ Stock actualizado")
 
-            guardarVentaPendiente(items, total, metodoPago, clienteNombre, clienteDocumento)
+            // 🔥 CAMBIO CRÍTICO: Guardar venta pendiente SIN sincronizar inmediatamente
+            guardarVentaPendienteSinSincronizar(
+                items,
+                total,
+                metodoPago,
+                clienteNombre,
+                clienteDocumento
+            )
 
+            Log.d(TAG, "✅ procesarVenta completado exitosamente")
             Result.success(ventaId)
 
         } catch (e: Exception) {
+            Log.e(TAG, "❌ Error en procesarVenta", e)
             Result.failure(e)
         }
     }
 
-    private suspend fun guardarVentaPendiente(
+    // 🆕 Nueva función: Guarda sin sincronizar inmediatamente
+    private suspend fun guardarVentaPendienteSinSincronizar(
         items: List<ItemCarrito>,
         total: Double,
         metodoPago: String,
@@ -134,6 +154,8 @@ class VentaRepository @Inject constructor(
         clienteDocumento: String?
     ) {
         try {
+            Log.d(TAG, "🟢 Guardando venta pendiente (sin sincronizar)")
+
             val productosDto = items.map { item ->
                 ProductoVentaDto(
                     productoId = item.producto.id,
@@ -156,19 +178,40 @@ class VentaRepository @Inject constructor(
             )
 
             val ventaId = ventaPendienteDao.insert(ventaPendiente)
-            sincronizarVenta(ventaId)
+            Log.d(TAG, "✅ Venta pendiente guardada con ID: $ventaId")
+
+            // 🔥 NO llamar a sincronizarVenta() aquí
+            // La sincronización se hará después en segundo plano
 
         } catch (e: Exception) {
-            Log.e(TAG, "Error guardando venta pendiente", e)
+            Log.e(TAG, "❌ Error guardando venta pendiente", e)
+        }
+    }
+
+    // 🆕 Función para intentar sincronizar CON timeout
+    suspend fun intentarSincronizarVenta(ventaId: Long): Result<String> {
+        return withTimeoutOrNull(5000) { // 5 segundos máximo
+            try {
+                sincronizarVenta(ventaId)
+            } catch (e: Exception) {
+                Log.d(TAG, "⚠️ Error al sincronizar venta $ventaId: ${e.message}")
+                Result.failure(e)
+            }
+        } ?: run {
+            Log.d(TAG, "⏱️ Timeout al sincronizar venta $ventaId")
+            Result.failure(Exception("Timeout en sincronización"))
         }
     }
 
     suspend fun sincronizarVenta(ventaId: Long): Result<String> {
         return try {
+            Log.d(TAG, "🟢 Sincronizando venta $ventaId con Firebase")
+
             val venta = ventaPendienteDao.getById(ventaId)
                 ?: return Result.failure(Exception("Venta no encontrada"))
 
             if (venta.sincronizado) {
+                Log.d(TAG, "✅ Venta ya sincronizada: ${venta.firebaseId}")
                 return Result.success(venta.firebaseId ?: "")
             }
 
@@ -220,12 +263,14 @@ class VentaRepository @Inject constructor(
 
     suspend fun sincronizarVentasPendientes(): Result<Int> {
         return try {
+            Log.d(TAG, "🟢 Sincronizando ventas pendientes")
+
             val ventasPendientes = ventaPendienteDao.getVentasPendientes()
             var sincronizadas = 0
 
             ventasPendientes.forEach { venta ->
                 if (venta.intentosSincronizacion < MAX_REINTENTOS) {
-                    val resultado = sincronizarVenta(venta.id)
+                    val resultado = intentarSincronizarVenta(venta.id)
                     if (resultado.isSuccess) sincronizadas++
                 }
             }

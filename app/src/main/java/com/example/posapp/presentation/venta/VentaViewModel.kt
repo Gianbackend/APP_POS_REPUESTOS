@@ -20,6 +20,9 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.TimeoutCancellationException
+import kotlinx.coroutines.withTimeout
+import kotlinx.coroutines.withTimeoutOrNull
 
 @HiltViewModel
 class VentaViewModel @Inject constructor(
@@ -139,83 +142,127 @@ class VentaViewModel @Inject constructor(
         android.util.Log.d("VentaVM", "✅ Validaciones OK - Procesando venta")
 
         viewModelScope.launch {
-            val itemsSnapshot = _state.value.items.toList()
+            try {
+                val itemsSnapshot = _state.value.items.toList()
 
-            _state.update { it.copy(isProcessing = true, error = null) }
+                _state.update { it.copy(isProcessing = true, error = null) }
 
-            val result = ventaRepository.procesarVenta(
-                items = itemsSnapshot,
-                metodoPago = _state.value.metodoPago,
-                clienteNombre = clienteForm.nombre,
-                clienteDocumento = clienteForm.documento,
-                clienteTelefono = clienteForm.telefono,
-                clienteEmail = clienteForm.email,
-                descuento = _state.value.descuento,
-                impuesto = _state.value.impuesto
-            )
+                android.util.Log.d("VentaVM", "🟢 PASO 1: Procesando venta en repository")
 
-            if (result.isSuccess) {
-                val ventaId = result.getOrNull()
-                android.util.Log.d("VentaVM", "✅ Venta procesada exitosamente, ventaId=$ventaId")
-
-                try {
-                    val numeroVenta = "V-${SimpleDateFormat("yyyy", Locale.getDefault()).format(Date())}-${String.format("%03d", ventaId)}"
-                    val fecha = Date()
-
-                    val pdfGenerator = TicketPdfGenerator(context)
-                    val pdfFile = pdfGenerator.generarTicket(
-                        numeroVenta = numeroVenta,
-                        fecha = fecha,
+                // Procesar venta con timeout de 10 segundos
+                val result = withTimeout(10000) {
+                    ventaRepository.procesarVenta(
+                        items = itemsSnapshot,
                         metodoPago = _state.value.metodoPago,
                         clienteNombre = clienteForm.nombre,
                         clienteDocumento = clienteForm.documento,
                         clienteTelefono = clienteForm.telefono,
                         clienteEmail = clienteForm.email,
-                        items = itemsSnapshot,
-                        subtotalSinIVA = _state.value.calcularSubtotalSinIVA(),
-                        montoIVA = _state.value.calcularMontoIVA(),
-                        total = _state.value.calcularTotal(),
-                        impuestoPorcentaje = _state.value.impuesto
+                        descuento = _state.value.descuento,
+                        impuesto = _state.value.impuesto
                     )
+                }
 
-                    android.util.Log.d("VentaVM", "✅ PDF generado: ${pdfFile.absolutePath}")
+                if (result.isSuccess) {
+                    val ventaId = result.getOrNull()
+                    android.util.Log.d("VentaVM", "✅ Venta procesada exitosamente, ventaId=$ventaId")
 
-                    val uploadResult = firebaseStorageManager.subirTicket(
-                        file = pdfFile,
-                        numeroVenta = numeroVenta,
-                        clienteEmail = clienteForm.email,
-                        total = _state.value.calcularTotal(),
-                        fecha = SimpleDateFormat("dd/MM/yyyy HH:mm", Locale.getDefault()).format(fecha)
-                    )
+                    android.util.Log.d("VentaVM", "🟢 PASO 2: Generando PDF")
 
-                    if (uploadResult.isSuccess) {
-                        android.util.Log.d("VentaVM", "✅ PDF subido a Storage, URL: ${uploadResult.getOrNull()}")
-                        android.util.Log.d("VentaVM", "📧 Cloud Function enviará el email automáticamente")
-                    } else {
-                        android.util.Log.e("VentaVM", "❌ Error al subir PDF: ${uploadResult.exceptionOrNull()?.message}")
+                    try {
+                        val numeroVenta = "V-${SimpleDateFormat("yyyy", Locale.getDefault()).format(Date())}-${String.format("%03d", ventaId)}"
+                        val fecha = Date()
+
+                        // Generar PDF con timeout de 10 segundos
+                        val pdfFile = withTimeout(10000) {
+                            val pdfGenerator = TicketPdfGenerator(context)
+                            pdfGenerator.generarTicket(
+                                numeroVenta = numeroVenta,
+                                fecha = fecha,
+                                metodoPago = _state.value.metodoPago,
+                                clienteNombre = clienteForm.nombre,
+                                clienteDocumento = clienteForm.documento,
+                                clienteTelefono = clienteForm.telefono,
+                                clienteEmail = clienteForm.email,
+                                items = itemsSnapshot,
+                                subtotalSinIVA = _state.value.calcularSubtotalSinIVA(),
+                                montoIVA = _state.value.calcularMontoIVA(),
+                                total = _state.value.calcularTotal(),
+                                impuestoPorcentaje = _state.value.impuesto
+                            )
+                        }
+
+                        android.util.Log.d("VentaVM", "✅ PDF generado: ${pdfFile.absolutePath}")
+
+                        android.util.Log.d("VentaVM", "🟢 PASO 3: Subiendo PDF a Storage")
+
+                        // Intentar subir PDF con timeout de 15 segundos
+                        val uploadResult = withTimeoutOrNull(15000) {
+                            try {
+                                firebaseStorageManager.subirTicket(
+                                    file = pdfFile,
+                                    numeroVenta = numeroVenta,
+                                    clienteEmail = clienteForm.email,
+                                    total = _state.value.calcularTotal(),
+                                    fecha = SimpleDateFormat("dd/MM/yyyy HH:mm", Locale.getDefault()).format(fecha)
+                                )
+                            } catch (e: Exception) {
+                                android.util.Log.d("VentaVM", "⚠️ Error al subir PDF (sin internet): ${e.message}")
+                                Result.failure(e)
+                            }
+                        }
+
+                        if (uploadResult?.isSuccess == true) {
+                            android.util.Log.d("VentaVM", "✅ PDF subido a Storage, URL: ${uploadResult.getOrNull()}")
+                            android.util.Log.d("VentaVM", "📧 Cloud Function enviará el email automáticamente")
+                        } else {
+                            android.util.Log.d("VentaVM", "⚠️ PDF no subido - se sincronizará cuando haya internet")
+                        }
+
+                    } catch (e: TimeoutCancellationException) {
+                        android.util.Log.e("VentaVM", "⏱️ Timeout al generar/subir PDF: ${e.message}")
+                    } catch (e: Exception) {
+                        android.util.Log.e("VentaVM", "❌ Error al generar/subir PDF: ${e.message}")
                     }
 
-                } catch (e: Exception) {
-                    android.util.Log.e("VentaVM", "❌ Error al generar/subir PDF: ${e.message}")
+                    android.util.Log.d("VentaVM", "🟢 PASO 4: Actualizando UI")
+
+                    _state.update {
+                        it.copy(
+                            isProcessing = false,
+                            ventaCompletada = true,
+                            ventaId = ventaId,
+                            mostrarFormCliente = false,
+                            items = itemsSnapshot
+                        )
+                    }
+                    android.util.Log.d("VentaVM", "✅ State actualizado con ventaCompletada=true")
+
+                } else {
+                    val error = result.exceptionOrNull()?.message ?: "Error al procesar la venta"
+                    android.util.Log.e("VentaVM", "❌ Error en result: $error")
+                    _state.update {
+                        it.copy(
+                            isProcessing = false,
+                            error = error
+                        )
+                    }
                 }
 
-                _state.update {
-                    it.copy(
-                        isProcessing = true,
-                        ventaCompletada = true,
-                        ventaId = ventaId,
-                        mostrarFormCliente = false,
-                        items = itemsSnapshot
-                    )
-                }
-                android.util.Log.d("VentaVM", "✅ State actualizado con ventaCompletada=true")
-
-            } else {
-                val error = result.exceptionOrNull()?.message ?: "Error al procesar la venta"
+            } catch (e: TimeoutCancellationException) {
+                android.util.Log.e("VentaVM", "⏱️ TIMEOUT en procesamiento de venta", e)
                 _state.update {
                     it.copy(
                         isProcessing = false,
-                        error = error
+                        error = "Timeout - La operación tardó demasiado. Revisa tu conexión."
+                    )
+                }
+            } catch (e: Exception) {
+                android.util.Log.e("VentaVM", "❌ Error procesando venta", e)
+                _state.update {
+                    it.copy(
+                        isProcessing = false,
+                        error = e.message ?: "Error desconocido"
                     )
                 }
             }
