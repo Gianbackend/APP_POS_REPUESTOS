@@ -28,10 +28,10 @@ class VentaRepository @Inject constructor(
     suspend fun procesarVenta(
         items: List<ItemCarrito>,
         metodoPago: String,
-        clienteNombre: String,       // ← NUEVO
-        clienteDocumento: String,    // ← NUEVO
-        clienteTelefono: String = "", // ← NUEVO
-        clienteEmail: String = "",   // ← NUEVO
+        clienteNombre: String,
+        clienteDocumento: String,
+        clienteTelefono: String = "",
+        clienteEmail: String = "",
         descuento: Double = 0.0,
         impuesto: Double = 18.0
     ): Result<Long> {
@@ -43,18 +43,17 @@ class VentaRepository @Inject constructor(
             if (usuarioId == 0L) {
                 return Result.failure(Exception("Usuario no autenticado"))
             }
-            // 2. Guardar o buscar cliente
+
+            // 2. Guardar o buscar cliente PRIMERO
             var clienteId: Long? = null
 
             if (clienteNombre.isNotBlank() && clienteDocumento.isNotBlank()) {
-                // Buscar si el cliente ya existe por documento
                 val clienteExistente = clienteDao.getByDocumento(clienteDocumento)
 
                 clienteId = if (clienteExistente != null) {
-                    // Cliente existe, usar su ID
                     clienteExistente.id
                 } else {
-                    // Cliente nuevo, guardarlo
+                    // Guardar cliente ANTES de la venta
                     val nuevoCliente = ClienteEntity(
                         nombre = clienteNombre,
                         documento = clienteDocumento,
@@ -63,39 +62,45 @@ class VentaRepository @Inject constructor(
                         direccion = "",
                         tipo = "MINORISTA"
                     )
-                    clienteDao.insert(nuevoCliente)
+                    val nuevoId = clienteDao.insert(nuevoCliente)
+
+                    // ✅ VERIFICAR que se guardó
+                    if (nuevoId <= 0) {
+                        throw Exception("Error al guardar cliente")
+                    }
+
+                    nuevoId
                 }
             }
-            // 2. Calcular totales (precio ya incluye IVA)
+
+            // 3. Calcular totales
             val totalConIVA = items.sumOf { it.subtotal }
             val descuentoAplicado = totalConIVA * (descuento / 100)
             val total = totalConIVA - descuentoAplicado
-
-            // Desglose del IVA (para guardar en BD)
             val subtotalSinIVA = total / (1 + impuesto / 100)
-            //val montoIVA = total - subtotalSinIVA
 
-            // 3. Número de venta
+            // 4. Número de venta
             val numeroVenta = generarNumeroVenta()
 
-            // 4. Crear venta
+            // 5. Crear venta CON clienteId válido
             val ventaEntity = VentaEntity(
                 numeroVenta = numeroVenta,
                 usuarioId = usuarioId,
-                clienteId = null,  // Por ahora null, luego lo agregamos
-                subtotal = subtotalSinIVA,  // Subtotal sin IVA
+                clienteId = clienteId,  // ✅ Ya está guardado
+                subtotal = subtotalSinIVA,
                 descuento = descuento,
                 impuesto = impuesto,
-                total = total,  // Total con IVA
+                total = total,
                 metodoPago = metodoPago,
                 estado = "COMPLETADA",
                 fechaVenta = System.currentTimeMillis(),
                 sincronizado = false
             )
 
-            // 5-8. Guardar venta, detalles, reducir stock (igual que antes)
+            // 6. Guardar venta
             val ventaId = ventaDao.insert(ventaEntity)
 
+            // 7. Guardar detalles
             val detalles = items.map { item ->
                 DetalleVentaEntity(
                     ventaId = ventaId,
@@ -105,9 +110,9 @@ class VentaRepository @Inject constructor(
                     subtotal = item.subtotal
                 )
             }
-
             detalleVentaDao.insertAll(detalles)
 
+            // 8. Reducir stock
             items.forEach { item ->
                 productoDao.reducirStock(item.producto.id, item.cantidad)
             }
@@ -118,6 +123,7 @@ class VentaRepository @Inject constructor(
             Result.failure(e)
         }
     }
+
 
     // Generar número de venta único (formato: V-2026-001)
     private suspend fun generarNumeroVenta(): String {
