@@ -29,9 +29,9 @@ import com.example.posapp.data.local.converter.Converters
         ClienteEntity::class,
         VentaEntity::class,
         DetalleVentaEntity::class,
-        VentaPendienteEntity::class  // ← ✅ YA LO TIENES
+        VentaPendienteEntity::class
     ],
-    version = 2,
+    version = 3,  // 🔥 CAMBIO: 2 → 3
     exportSchema = false
 )
 @TypeConverters(Converters::class)
@@ -43,16 +43,14 @@ abstract class POSDatabase : RoomDatabase() {
     abstract fun clienteDao(): ClienteDao
     abstract fun ventaDao(): VentaDao
     abstract fun detalleVentaDao(): DetalleVentaDao
-    abstract fun ventaPendienteDao(): VentaPendienteDao  // ← ✅ YA LO TIENES
+    abstract fun ventaPendienteDao(): VentaPendienteDao
 
     companion object {
         const val DATABASE_NAME = "pos_database"
 
-        // 🆕 MIGRACIÓN 1 → 2: Agregar tabla ventas_pendientes + campos sync en productos
+        // Migración 1 → 2: Agregar tabla ventas_pendientes
         val MIGRATION_1_2 = object : Migration(1, 2) {
             override fun migrate(database: SupportSQLiteDatabase) {
-
-                // 1️⃣ Crear tabla ventas_pendientes
                 database.execSQL("""
                     CREATE TABLE IF NOT EXISTS ventas_pendientes (
                         id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
@@ -70,7 +68,6 @@ abstract class POSDatabase : RoomDatabase() {
                     )
                 """.trimIndent())
 
-                // 2️⃣ Agregar columnas de sincronización a productos
                 database.execSQL("""
                     ALTER TABLE productos 
                     ADD COLUMN firebaseId TEXT
@@ -84,6 +81,42 @@ abstract class POSDatabase : RoomDatabase() {
                 database.execSQL("""
                     ALTER TABLE productos 
                     ADD COLUMN ultimaSincronizacion INTEGER
+                """)
+            }
+        }
+
+        // 🆕 Migración 2 → 3: Agregar campos para sincronización de PDFs
+        val MIGRATION_2_3 = object : Migration(2, 3) {
+            override fun migrate(database: SupportSQLiteDatabase) {
+                // Agregar columnas para manejo de PDFs
+                database.execSQL("""
+                    ALTER TABLE ventas_pendientes 
+                    ADD COLUMN pdfRutaLocal TEXT
+                """)
+
+                database.execSQL("""
+                    ALTER TABLE ventas_pendientes 
+                    ADD COLUMN pdfSubido INTEGER NOT NULL DEFAULT 0
+                """)
+
+                database.execSQL("""
+                    ALTER TABLE ventas_pendientes 
+                    ADD COLUMN pdfUrlStorage TEXT
+                """)
+
+                database.execSQL("""
+                    ALTER TABLE ventas_pendientes 
+                    ADD COLUMN emailEnviado INTEGER NOT NULL DEFAULT 0
+                """)
+
+                database.execSQL("""
+                    ALTER TABLE ventas_pendientes 
+                    ADD COLUMN clienteEmail TEXT
+                """)
+
+                database.execSQL("""
+                    ALTER TABLE ventas_pendientes 
+                    ADD COLUMN numeroVenta TEXT
                 """)
             }
         }

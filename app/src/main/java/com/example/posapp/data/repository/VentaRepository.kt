@@ -50,7 +50,8 @@ class VentaRepository @Inject constructor(
         clienteTelefono: String = "",
         clienteEmail: String = "",
         descuento: Double = 0.0,
-        impuesto: Double = 18.0
+        impuesto: Double = 18.0,
+        pdfRutaLocal: String? = null
     ): Result<Long> {
         return try {
             Log.d(TAG, "🟢 Iniciando procesarVenta")
@@ -129,11 +130,14 @@ class VentaRepository @Inject constructor(
 
             // 🔥 CAMBIO CRÍTICO: Guardar venta pendiente SIN sincronizar inmediatamente
             guardarVentaPendienteSinSincronizar(
-                items,
-                total,
-                metodoPago,
-                clienteNombre,
-                clienteDocumento
+                items = items,
+                total = total,
+                metodoPago = metodoPago,
+                clienteNombre = clienteNombre,
+                clienteDocumento = clienteDocumento,
+                clienteEmail = clienteEmail,    // 🆕
+                numeroVenta = numeroVenta,       // 🆕
+                pdfRutaLocal = pdfRutaLocal     // 🆕
             )
 
             Log.d(TAG, "✅ procesarVenta completado exitosamente")
@@ -145,13 +149,16 @@ class VentaRepository @Inject constructor(
         }
     }
 
-    // 🆕 Nueva función: Guarda sin sincronizar inmediatamente
+    // 🆕 Función mejorada: Guarda venta pendiente CON información del PDF
     private suspend fun guardarVentaPendienteSinSincronizar(
         items: List<ItemCarrito>,
         total: Double,
         metodoPago: String,
         clienteNombre: String?,
-        clienteDocumento: String?
+        clienteDocumento: String?,
+        clienteEmail: String? = null,  // 🆕 Parámetro nuevo
+        numeroVenta: String,            // 🆕 Parámetro nuevo
+        pdfRutaLocal: String? = null    // 🆕 Parámetro nuevo
     ) {
         try {
             Log.d(TAG, "🟢 Guardando venta pendiente (sin sincronizar)")
@@ -173,20 +180,24 @@ class VentaRepository @Inject constructor(
                 metodoPago = metodoPago,
                 clienteNombre = clienteNombre,
                 clienteDocumento = clienteDocumento,
+                clienteEmail = clienteEmail,      // 🆕
+                numeroVenta = numeroVenta,         // 🆕
                 productosJson = gson.toJson(productosDto),
-                sincronizado = false
+                sincronizado = false,
+                pdfRutaLocal = pdfRutaLocal,      // 🆕
+                pdfSubido = false,                 // 🆕
+                emailEnviado = false               // 🆕
             )
 
             val ventaId = ventaPendienteDao.insert(ventaPendiente)
             Log.d(TAG, "✅ Venta pendiente guardada con ID: $ventaId")
-
-            // 🔥 NO llamar a sincronizarVenta() aquí
-            // La sincronización se hará después en segundo plano
+            Log.d(TAG, "📄 PDF local: $pdfRutaLocal")
 
         } catch (e: Exception) {
             Log.e(TAG, "❌ Error guardando venta pendiente", e)
         }
     }
+
 
     // 🆕 Función para intentar sincronizar CON timeout
     suspend fun intentarSincronizarVenta(ventaId: Long): Result<String> {
@@ -306,5 +317,62 @@ class VentaRepository @Inject constructor(
 
     suspend fun getDetallesVenta(ventaId: Long): List<DetalleVentaEntity> {
         return detalleVentaDao.getByVenta(ventaId)
+    }
+
+    // 🆕 Actualizar la ruta del PDF en la venta pendiente
+    suspend fun actualizarPdfRutaLocal(ventaId: Long, pdfRutaLocal: String) {
+        try {
+            Log.d(TAG, "🟢 Actualizando PDF ruta local para venta $ventaId")
+
+            val ventaPendiente = ventaPendienteDao.getAll()
+                .firstOrNull { it.id == ventaId }
+
+            if (ventaPendiente != null) {
+                val actualizada = ventaPendiente.copy(
+                    pdfRutaLocal = pdfRutaLocal
+                )
+                ventaPendienteDao.update(actualizada)
+                Log.d(TAG, "✅ PDF ruta actualizada: $pdfRutaLocal")
+            } else {
+                Log.e(TAG, "❌ No se encontró venta pendiente con ID: $ventaId")
+            }
+
+        } catch (e: Exception) {
+            Log.e(TAG, "❌ Error actualizando PDF ruta", e)
+        }
+    }
+
+    // 🆕 Marcar PDF como subido exitosamente
+    suspend fun marcarPdfComoSubido(ventaId: Long, pdfUrl: String) {
+        try {
+            Log.d(TAG, "🟢 Marcando PDF como subido para venta $ventaId")
+
+            val ventaPendiente = ventaPendienteDao.getAll()
+                .firstOrNull { it.id == ventaId }
+
+            if (ventaPendiente != null) {
+                val actualizada = ventaPendiente.copy(
+                    pdfSubido = true,
+                    pdfUrlStorage = pdfUrl
+                )
+                ventaPendienteDao.update(actualizada)
+                Log.d(TAG, "✅ PDF marcado como subido: $pdfUrl")
+            } else {
+                Log.e(TAG, "❌ No se encontró venta pendiente con ID: $ventaId")
+            }
+
+        } catch (e: Exception) {
+            Log.e(TAG, "❌ Error marcando PDF como subido", e)
+        }
+    }
+
+    // 🆕 Obtener ventas con PDFs pendientes de subir
+    suspend fun getVentasConPdfsPendientes(): List<VentaPendienteEntity> {
+        return try {
+            ventaPendienteDao.getVentasConPdfsPendientes()
+        } catch (e: Exception) {
+            Log.e(TAG, "❌ Error obteniendo ventas con PDFs pendientes", e)
+            emptyList()
+        }
     }
 }

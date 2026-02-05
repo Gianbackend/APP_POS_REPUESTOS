@@ -159,7 +159,8 @@ class VentaViewModel @Inject constructor(
                         clienteTelefono = clienteForm.telefono,
                         clienteEmail = clienteForm.email,
                         descuento = _state.value.descuento,
-                        impuesto = _state.value.impuesto
+                        impuesto = _state.value.impuesto,
+                        pdfRutaLocal = null  // 🔥 Todavía no tenemos el PDF
                     )
                 }
 
@@ -168,6 +169,8 @@ class VentaViewModel @Inject constructor(
                     android.util.Log.d("VentaVM", "✅ Venta procesada exitosamente, ventaId=$ventaId")
 
                     android.util.Log.d("VentaVM", "🟢 PASO 2: Generando PDF")
+
+                    var pdfRutaLocal: String? = null
 
                     try {
                         val numeroVenta = "V-${SimpleDateFormat("yyyy", Locale.getDefault()).format(Date())}-${String.format("%03d", ventaId)}"
@@ -192,7 +195,12 @@ class VentaViewModel @Inject constructor(
                             )
                         }
 
-                        android.util.Log.d("VentaVM", "✅ PDF generado: ${pdfFile.absolutePath}")
+                        pdfRutaLocal = pdfFile.absolutePath
+                        android.util.Log.d("VentaVM", "✅ PDF generado: $pdfRutaLocal")
+
+                        // 🆕 PASO 2.5: Actualizar venta pendiente con ruta del PDF
+                        android.util.Log.d("VentaVM", "🟢 PASO 2.5: Actualizando venta pendiente con ruta del PDF")
+                        ventaRepository.actualizarPdfRutaLocal(ventaId!!, pdfRutaLocal)
 
                         android.util.Log.d("VentaVM", "🟢 PASO 3: Subiendo PDF a Storage")
 
@@ -213,8 +221,13 @@ class VentaViewModel @Inject constructor(
                         }
 
                         if (uploadResult?.isSuccess == true) {
-                            android.util.Log.d("VentaVM", "✅ PDF subido a Storage, URL: ${uploadResult.getOrNull()}")
+                            val pdfUrl = uploadResult.getOrNull()
+                            android.util.Log.d("VentaVM", "✅ PDF subido a Storage, URL: $pdfUrl")
                             android.util.Log.d("VentaVM", "📧 Cloud Function enviará el email automáticamente")
+
+                            // 🆕 Marcar PDF como subido en la venta pendiente
+                            ventaRepository.marcarPdfComoSubido(ventaId!!, pdfUrl!!)
+
                         } else {
                             android.util.Log.d("VentaVM", "⚠️ PDF no subido - se sincronizará cuando haya internet")
                         }
@@ -268,6 +281,7 @@ class VentaViewModel @Inject constructor(
             }
         }
     }
+
 
     fun onPreNavigate() {
         hasNavigated = true

@@ -49,7 +49,10 @@ object DatabaseModule {
                     }
                 }
             })
-            .addMigrations(POSDatabase.MIGRATION_1_2)  // ← ✅ YA LO TIENES
+            .addMigrations(
+                POSDatabase.MIGRATION_1_2,
+                POSDatabase.MIGRATION_2_3  // 🆕 Agregar esta línea
+            )
             .fallbackToDestructiveMigration()
             .build()
     }

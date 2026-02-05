@@ -24,6 +24,13 @@ data class VentaPendienteEntity(
     val intentosSincronizacion: Int = 0,
     val ultimoIntento: Long? = null,
     val errorSincronizacion: String? = null,
+    // 🆕 NUEVOS CAMPOS PARA PDF
+    val pdfRutaLocal: String? = null,  // Ruta del PDF en el dispositivo
+    val pdfSubido: Boolean = false,     // Si el PDF ya se subió a Storage
+    val pdfUrlStorage: String? = null,  // URL del PDF en Firebase Storage
+    val emailEnviado: Boolean = false,  // Si el email ya se envió
+    val clienteEmail: String? = null,   // Email del cliente
+    val numeroVenta: String? = null,     // Número de venta (V-2026-007)
 
     // Estado
     val sincronizado: Boolean = false,
