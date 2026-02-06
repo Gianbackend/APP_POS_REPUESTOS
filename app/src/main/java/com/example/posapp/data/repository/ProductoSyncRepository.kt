@@ -18,7 +18,7 @@ class ProductoSyncRepository @Inject constructor(
     private val productoDao: ProductoDao
 ) {
     private val TAG = "ProductoSync"
-    private var listener: ListenerRegistration? = null
+    private var listener: ListenerRegistration? = null //r
 
     /**
      * Sincronización inicial: descarga todos los productos de Firestore
