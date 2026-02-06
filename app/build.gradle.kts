@@ -129,8 +129,8 @@ dependencies {
     // Firebase
     implementation(platform("com.google.firebase:firebase-bom:32.7.0"))
     implementation("com.google.firebase:firebase-firestore-ktx")
+    implementation("com.google.firebase:firebase-firestore-ktx:24.10.0")
     implementation("com.google.firebase:firebase-storage-ktx")
 
-    // Coil para imágenes
-    implementation("io.coil-kt:coil-compose:2.5.0")
+
 }
