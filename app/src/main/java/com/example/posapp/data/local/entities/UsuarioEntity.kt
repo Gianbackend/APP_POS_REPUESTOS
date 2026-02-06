@@ -6,8 +6,8 @@ import com.example.posapp.domain.model.Usuario
 
 @Entity(tableName = "usuarios")
 data class UsuarioEntity(
-    @PrimaryKey(autoGenerate = true)
-    val id: Long = 0,
+    @PrimaryKey
+    val id: String,
     val nombre: String,
     val email: String,
     val passwordHash: String,

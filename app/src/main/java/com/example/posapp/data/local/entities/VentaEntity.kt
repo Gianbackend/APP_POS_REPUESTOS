@@ -32,7 +32,7 @@ data class VentaEntity(
     @PrimaryKey(autoGenerate = true)
     val id: Long = 0,
     val numeroVenta: String,
-    val usuarioId: Long,
+    val usuarioId: String,
     val clienteId: Long? = null,
     val subtotal: Double,
     val descuento: Double = 0.0,

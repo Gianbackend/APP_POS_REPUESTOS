@@ -3,18 +3,12 @@ package com.example.posapp.di
 import android.content.Context
 import androidx.room.Room
 import androidx.room.RoomDatabase
+import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
 import com.example.posapp.data.firebase.FirebaseStorageManager
-import com.example.posapp.data.local.dao.CategoriaDao
-import com.example.posapp.data.local.dao.ClienteDao
-import com.example.posapp.data.local.dao.DetalleVentaDao
-import com.example.posapp.data.local.dao.ProductoDao
-import com.example.posapp.data.local.dao.UsuarioDao
-import com.example.posapp.data.local.dao.VentaDao
+import com.example.posapp.data.local.dao.*
 import com.example.posapp.data.local.database.POSDatabase
-import com.example.posapp.data.local.entities.CategoriaEntity
-import com.example.posapp.data.local.entities.ProductoEntity
-import com.example.posapp.data.local.entities.UsuarioEntity
+import com.example.posapp.data.local.entities.*
 import com.example.posapp.data.repository.ProductoSyncRepository
 import com.google.firebase.firestore.FirebaseFirestore
 import dagger.Module
@@ -30,6 +24,37 @@ import javax.inject.Singleton
 @Module
 @InstallIn(SingletonComponent::class)
 object DatabaseModule {
+
+    // ✅ NUEVA: Migración 2 → 3 (cambiar id de Long a String en usuarios)
+    private val MIGRATION_2_3 = object : Migration(2, 3) {
+        override fun migrate(database: SupportSQLiteDatabase) {
+            // 1. Crear tabla temporal con id String
+            database.execSQL("""
+                CREATE TABLE usuarios_new (
+                    id TEXT PRIMARY KEY NOT NULL,
+                    nombre TEXT NOT NULL,
+                    email TEXT NOT NULL,
+                    passwordHash TEXT NOT NULL,
+                    rol TEXT NOT NULL,
+                    activo INTEGER NOT NULL DEFAULT 1,
+                    fechaCreacion INTEGER NOT NULL
+                )
+            """)
+
+            // 2. Copiar datos existentes (convertir id a String)
+            database.execSQL("""
+                INSERT INTO usuarios_new (id, nombre, email, passwordHash, rol, activo, fechaCreacion)
+                SELECT CAST(id AS TEXT), nombre, email, passwordHash, rol, activo, fechaCreacion
+                FROM usuarios
+            """)
+
+            // 3. Eliminar tabla vieja
+            database.execSQL("DROP TABLE usuarios")
+
+            // 4. Renombrar tabla nueva
+            database.execSQL("ALTER TABLE usuarios_new RENAME TO usuarios")
+        }
+    }
 
     @Provides
     @Singleton
@@ -49,8 +74,12 @@ object DatabaseModule {
                     }
                 }
             })
-            .addMigrations(POSDatabase.MIGRATION_1_2)
-            .fallbackToDestructiveMigration()
+            .addMigrations(
+                POSDatabase.MIGRATION_1_2,
+                POSDatabase.MIGRATION_2_3,
+                POSDatabase.MIGRATION_3_4 // ✅ AGREGAR
+            )
+            .fallbackToDestructiveMigration() // ✅ Si falla, borra todo
             .build()
     }
 
@@ -90,9 +119,6 @@ object DatabaseModule {
         return FirebaseStorageManager()
     }
 
-    // ✅ ELIMINADO: provideFirestore() (ya está en FirebaseModule)
-
-    // ✅ ProductoSyncRepository (usa Firestore de FirebaseModule)
     @Provides
     @Singleton
     fun provideProductoSyncRepository(
@@ -102,6 +128,7 @@ object DatabaseModule {
         return ProductoSyncRepository(firestore, productoDao)
     }
 
+    // ✅ ACTUALIZADO: Datos iniciales con id String
     private suspend fun insertarDatosIniciales(context: Context) {
         val db = Room.databaseBuilder(
             context,
@@ -110,10 +137,11 @@ object DatabaseModule {
         ).build()
 
         try {
-            // Usuario admin
+            // ✅ Usuario admin con ID String (simulando Firebase UID)
             val adminHash = "admin123".hashCode().toString()
             db.usuarioDao().insert(
                 UsuarioEntity(
+                    id = "admin_local_001", // ✅ ID String
                     nombre = "Administrador",
                     email = "admin@pos.com",
                     passwordHash = adminHash,
@@ -121,7 +149,7 @@ object DatabaseModule {
                 )
             )
 
-            // Categorías
+            // Categorías (sin cambios)
             val categorias = listOf(
                 CategoriaEntity(nombre = "Frenos", descripcion = "Sistema de frenado", color = "#E53935"),
                 CategoriaEntity(nombre = "Motor", descripcion = "Repuestos de motor", color = "#1E88E5"),
@@ -131,7 +159,7 @@ object DatabaseModule {
             )
             db.categoriaDao().insertAll(categorias)
 
-            // Productos
+            // Productos (sin cambios)
             val productos = listOf(
                 ProductoEntity(
                     codigo = "MOTO-F001",

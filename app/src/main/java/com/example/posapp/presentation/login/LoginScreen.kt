@@ -5,8 +5,6 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Email
 import androidx.compose.material.icons.filled.Lock
-import androidx.compose.material.icons.filled.Visibility
-import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -14,28 +12,22 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
-import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 
-// onLoginSuccess = callback que se ejecuta cuando login es exitoso
-// viewModel = Hilt lo crea automáticamente con hiltViewModel()
 @Composable
 fun LoginScreen(
-    onLoginSuccess: () -> Unit, // Función para navegar al Home
-    viewModel: LoginViewModel = hiltViewModel() // Inyectado por Hilt
+    onLoginSuccess: () -> Unit,
+    viewModel: LoginViewModel = hiltViewModel()
 ) {
-    // Observar el estado del ViewModel (se redibuja cuando cambia)
     val state by viewModel.state.collectAsState()
 
-    // Estado local para mostrar/ocultar password
-    var passwordVisible by remember { mutableStateOf(false) }
+    // ❌ ELIMINADO: var passwordVisible (ya no se necesita mostrar/ocultar)
 
-    // Detectar cuando login es exitoso y navegar
     LaunchedEffect(state.loginSuccess) {
         if (state.loginSuccess) {
-            onLoginSuccess() // Navega al Home
+            onLoginSuccess()
         }
     }
 
@@ -70,10 +62,10 @@ fun LoginScreen(
 
                 Spacer(modifier = Modifier.height(32.dp))
 
-                // Campo Email
+                // Campo Email (sin cambios)
                 OutlinedTextField(
-                    value = state.email, // Valor desde el estado
-                    onValueChange = viewModel::onEmailChange, // Llama al ViewModel
+                    value = state.email,
+                    onValueChange = viewModel::onEmailChange,
                     label = { Text("Email") },
                     leadingIcon = {
                         Icon(Icons.Default.Email, contentDescription = null)
@@ -83,40 +75,33 @@ fun LoginScreen(
                     ),
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth(),
-                    enabled = !state.isLoading // Deshabilitar si está cargando
+                    enabled = !state.isLoading
                 )
 
-                // Campo Password
+                // ✅ CAMBIO 1: Campo PIN de 4 dígitos (antes era Password)
                 OutlinedTextField(
                     value = state.password,
-                    onValueChange = viewModel::onPasswordChange,
-                    label = { Text("Contraseña") },
+                    onValueChange = { newValue ->
+                        // Solo acepta números y máximo 4 dígitos
+                        if (newValue.length <= 6 && newValue.all { it.isDigit() }) {
+                            viewModel.onPasswordChange(newValue)
+                        }
+                    },
+                    label = { Text("PIN (6 dígitos)") }, // ✅ Cambio de label
                     leadingIcon = {
                         Icon(Icons.Default.Lock, contentDescription = null)
                     },
-                    trailingIcon = {
-                        // Botón para mostrar/ocultar password
-                        IconButton(onClick = { passwordVisible = !passwordVisible }) {
-                            Icon(
-                                if (passwordVisible) Icons.Default.Visibility
-                                else Icons.Default.VisibilityOff,
-                                contentDescription = if (passwordVisible) "Ocultar" else "Mostrar"
-                            )
-                        }
-                    },
-                    visualTransformation = if (passwordVisible)
-                        VisualTransformation.None // Texto visible
-                    else
-                        PasswordVisualTransformation(), // Texto oculto (••••)
+                    // ❌ ELIMINADO: trailingIcon (botón mostrar/ocultar)
+                    visualTransformation = PasswordVisualTransformation(),
                     keyboardOptions = KeyboardOptions(
-                        keyboardType = KeyboardType.Password
+                        keyboardType = KeyboardType.NumberPassword // ✅ Solo números
                     ),
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth(),
                     enabled = !state.isLoading
                 )
 
-                // Mensaje de error (solo se muestra si hay error)
+                // Mensaje de error
                 if (state.error != null) {
                     Card(
                         colors = CardDefaults.cardColors(
@@ -134,16 +119,15 @@ fun LoginScreen(
 
                 Spacer(modifier = Modifier.height(8.dp))
 
-                // Botón Login
+                // Botón Login (sin cambios)
                 Button(
-                    onClick = viewModel::onLogin, // Llama al ViewModel
+                    onClick = viewModel::onLogin,
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(56.dp),
-                    enabled = !state.isLoading // Deshabilitar mientras carga
+                    enabled = !state.isLoading
                 ) {
                     if (state.isLoading) {
-                        // Mostrar spinner mientras carga
                         CircularProgressIndicator(
                             modifier = Modifier.size(24.dp),
                             color = MaterialTheme.colorScheme.onPrimary
@@ -155,7 +139,7 @@ fun LoginScreen(
 
                 Spacer(modifier = Modifier.height(16.dp))
 
-                // Info de usuario por defecto (solo para desarrollo)
+                // ✅ CAMBIO 2: Actualizar info de usuario de prueba
                 Card(
                     colors = CardDefaults.cardColors(
                         containerColor = MaterialTheme.colorScheme.secondaryContainer
@@ -171,11 +155,11 @@ fun LoginScreen(
                             color = MaterialTheme.colorScheme.onSecondaryContainer
                         )
                         Text(
-                            text = "Email: admin@pos.com",
+                            text = "Email: admin@pos.com", // ✅ Cambio
                             color = MaterialTheme.colorScheme.onSecondaryContainer
                         )
                         Text(
-                            text = "Contraseña: admin123",
+                            text = "PIN: 123456",
                             color = MaterialTheme.colorScheme.onSecondaryContainer
                         )
                     }

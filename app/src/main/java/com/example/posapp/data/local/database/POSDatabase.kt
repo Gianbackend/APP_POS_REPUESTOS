@@ -27,7 +27,7 @@ import com.example.posapp.data.local.entities.VentaEntity
         VentaEntity::class,
         DetalleVentaEntity::class
     ],
-    version = 2,
+    version = 4,
     exportSchema = false
 )
 abstract class POSDatabase : RoomDatabase() {
@@ -62,5 +62,78 @@ abstract class POSDatabase : RoomDatabase() {
                 """)
             }
         }
+        // Migración 2 → 3: usuarios Long → String
+        val MIGRATION_2_3 = object : Migration(2, 3) {
+            override fun migrate(database: SupportSQLiteDatabase) {
+                database.execSQL("""
+                    CREATE TABLE usuarios_new (
+                        id TEXT PRIMARY KEY NOT NULL,
+                        nombre TEXT NOT NULL,
+                        email TEXT NOT NULL,
+                        passwordHash TEXT NOT NULL,
+                        rol TEXT NOT NULL,
+                        activo INTEGER NOT NULL DEFAULT 1,
+                        fechaCreacion INTEGER NOT NULL
+                    )
+                """)
+
+                database.execSQL("""
+                    INSERT INTO usuarios_new (id, nombre, email, passwordHash, rol, activo, fechaCreacion)
+                    SELECT CAST(id AS TEXT), nombre, email, passwordHash, rol, activo, fechaCreacion
+                    FROM usuarios
+                """)
+
+                database.execSQL("DROP TABLE usuarios")
+                database.execSQL("ALTER TABLE usuarios_new RENAME TO usuarios")
+            }
+        }
+
+        // ✅ NUEVA: Migración 3 → 4: ventas.usuarioId Long → String
+        val MIGRATION_3_4 = object : Migration(3, 4) {
+            override fun migrate(database: SupportSQLiteDatabase) {
+                // Crear tabla temporal
+                database.execSQL("""
+                    CREATE TABLE ventas_new (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                        numeroVenta TEXT NOT NULL,
+                        usuarioId TEXT NOT NULL,
+                        clienteId INTEGER,
+                        subtotal REAL NOT NULL,
+                        descuento REAL NOT NULL DEFAULT 0.0,
+                        impuesto REAL NOT NULL DEFAULT 18.0,
+                        total REAL NOT NULL,
+                        metodoPago TEXT NOT NULL,
+                        estado TEXT NOT NULL DEFAULT 'COMPLETADA',
+                        fechaVenta INTEGER NOT NULL,
+                        sincronizado INTEGER NOT NULL DEFAULT 0,
+                        firebaseId TEXT,
+                        ultimaSincronizacion INTEGER,
+                        FOREIGN KEY(usuarioId) REFERENCES usuarios(id) ON DELETE CASCADE,
+                        FOREIGN KEY(clienteId) REFERENCES clientes(id) ON DELETE SET NULL
+                    )
+                """)
+
+                // Copiar datos (convertir usuarioId a String)
+                database.execSQL("""
+                    INSERT INTO ventas_new 
+                    SELECT id, numeroVenta, CAST(usuarioId AS TEXT), clienteId, 
+                           subtotal, descuento, impuesto, total, metodoPago, 
+                           estado, fechaVenta, sincronizado, firebaseId, ultimaSincronizacion
+                    FROM ventas
+                """)
+
+                // Eliminar tabla vieja
+                database.execSQL("DROP TABLE ventas")
+
+                // Renombrar
+                database.execSQL("ALTER TABLE ventas_new RENAME TO ventas")
+
+                // Recrear índices
+                database.execSQL("CREATE INDEX index_ventas_usuarioId ON ventas(usuarioId)")
+                database.execSQL("CREATE INDEX index_ventas_clienteId ON ventas(clienteId)")
+                database.execSQL("CREATE UNIQUE INDEX index_ventas_numeroVenta ON ventas(numeroVenta)")
+            }
+        }
     }
 }
+

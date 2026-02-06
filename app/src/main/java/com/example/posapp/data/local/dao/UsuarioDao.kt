@@ -11,7 +11,7 @@ interface UsuarioDao {
     suspend fun getByEmail(email: String): UsuarioEntity?
 
     @Query("SELECT * FROM usuarios WHERE id = :id")
-    suspend fun getById(id: Long): UsuarioEntity?
+    suspend fun getById(id: String): UsuarioEntity?
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insert(usuario: UsuarioEntity): Long

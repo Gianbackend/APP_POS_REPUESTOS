@@ -1,5 +1,6 @@
 package com.example.posapp.presentation.login
 
+import android.provider.ContactsContract.PinnedPositions.pin
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.posapp.data.repository.AuthRepository
@@ -7,6 +8,7 @@ import com.example.posapp.util.Resource
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.fold
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -36,51 +38,52 @@ class LoginViewModel @Inject constructor(
 
     // Cuando el usuario presiona el botón "Iniciar Sesión"
     fun onLogin() {
-        val email = _state.value.email.trim() // Quita espacios
-        val password = _state.value.password
+        val email = _state.value.email
+        val password = _state.value.password // Este es el PIN
 
-        // Validaciones básicas
+        // Validaciones
         if (email.isEmpty()) {
             _state.update { it.copy(error = "Ingrese el email") }
             return
         }
 
-        if (password.isEmpty()) {
-            _state.update { it.copy(error = "Ingrese la contraseña") }
+        // NUEVA VALIDACIÓN PARA PIN (6 dígitos)
+        if (password.length != 6 || !password.all { it.isDigit() }) {
+            _state.update { it.copy(error = "El PIN debe tener 6 dígitos") }
             return
         }
 
-        // Intentar login
-        viewModelScope.launch { // Ejecuta en background
+        _state.update { it.copy(isLoading = true, error = null) }
+
+        viewModelScope.launch {
             authRepository.login(email, password).collect { result ->
-                // collect = observa los estados que emite el Repository
                 when (result) {
-                    is Resource.Loading -> {
-                        // Mostrar loading
-                        _state.update { it.copy(isLoading = true, error = null) }
-                    }
                     is Resource.Success -> {
-                        // Login exitoso
                         _state.update {
                             it.copy(
                                 isLoading = false,
-                                loginSuccess = true,
-                                error = null
+                                loginSuccess = true
                             )
                         }
                     }
                     is Resource.Error -> {
-                        // Mostrar error
                         _state.update {
                             it.copy(
                                 isLoading = false,
-                                error = result.message,
-                                loginSuccess = false
+                                error = result.message ?: "Error al iniciar sesión"
                             )
                         }
+                    }
+                    is Resource.Loading -> {
+                        _state.update { it.copy(isLoading = true) }
                     }
                 }
             }
         }
     }
+
+
+
+
+
 }

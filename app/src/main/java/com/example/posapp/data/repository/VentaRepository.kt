@@ -17,11 +17,11 @@ import javax.inject.Singleton
 
 @Singleton
 class VentaRepository @Inject constructor(
-    private val ventaDao: VentaDao,              // Para guardar ventas
-    private val detalleVentaDao: DetalleVentaDao, // Para guardar items
+    private val ventaDao: VentaDao,
+    private val detalleVentaDao: DetalleVentaDao,
     private val productoDao: ProductoDao,
-    private val clienteDao: ClienteDao,// Para reducir stock
-    private val userPreferences: UserPreferences  // Para obtener usuario actual
+    private val clienteDao: ClienteDao,
+    private val userPreferences: UserPreferences
 ) {
 
     // Procesar y guardar venta completa
@@ -40,7 +40,8 @@ class VentaRepository @Inject constructor(
             val session = userPreferences.userSession.first()
             val usuarioId = session.userId
 
-            if (usuarioId == 0L) {
+            // ✅ CAMBIO: Ahora userId es String
+            if (usuarioId.isEmpty()) {
                 return Result.failure(Exception("Usuario no autenticado"))
             }
 
@@ -85,8 +86,8 @@ class VentaRepository @Inject constructor(
             // 5. Crear venta CON clienteId válido
             val ventaEntity = VentaEntity(
                 numeroVenta = numeroVenta,
-                usuarioId = usuarioId,
-                clienteId = clienteId,  // ✅ Ya está guardado
+                usuarioId = usuarioId, // ✅ String (UID de Firebase)
+                clienteId = clienteId,
                 subtotal = subtotalSinIVA,
                 descuento = descuento,
                 impuesto = impuesto,
@@ -123,7 +124,6 @@ class VentaRepository @Inject constructor(
             Result.failure(e)
         }
     }
-
 
     // Generar número de venta único (formato: V-2026-001)
     private suspend fun generarNumeroVenta(): String {

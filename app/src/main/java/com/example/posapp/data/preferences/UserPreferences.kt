@@ -19,7 +19,7 @@ class UserPreferences @Inject constructor(
 ) {
     // Llaves para guardar datos
     private object PreferencesKeys {
-        val USER_ID = longPreferencesKey("user_id")
+        val USER_ID = stringPreferencesKey("user_id") // ✅ CAMBIO: Long → String
         val USER_NAME = stringPreferencesKey("user_name")
         val USER_EMAIL = stringPreferencesKey("user_email")
         val USER_ROL = stringPreferencesKey("user_rol")
@@ -29,7 +29,7 @@ class UserPreferences @Inject constructor(
     // Leer sesión del usuario (Flow = datos reactivos)
     val userSession: Flow<UserSession> = context.dataStore.data.map { preferences ->
         UserSession(
-            userId = preferences[PreferencesKeys.USER_ID] ?: 0L,
+            userId = preferences[PreferencesKeys.USER_ID] ?: "", // ✅ CAMBIO: 0L → ""
             userName = preferences[PreferencesKeys.USER_NAME] ?: "",
             userEmail = preferences[PreferencesKeys.USER_EMAIL] ?: "",
             userRol = preferences[PreferencesKeys.USER_ROL] ?: "",
@@ -39,7 +39,7 @@ class UserPreferences @Inject constructor(
 
     // Guardar sesión cuando el usuario hace login
     suspend fun saveUserSession(
-        userId: Long,
+        userId: String, // ✅ CAMBIO: Long → String
         userName: String,
         userEmail: String,
         userRol: String
@@ -63,7 +63,7 @@ class UserPreferences @Inject constructor(
 
 // Modelo de datos de la sesión
 data class UserSession(
-    val userId: Long,
+    val userId: String, // ✅ CAMBIO: Long → String
     val userName: String,
     val userEmail: String,
     val userRol: String,

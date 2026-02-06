@@ -107,10 +107,11 @@ dependencies {
     // Gson
     implementation("com.google.code.gson:gson:2.10.1")
 
-    // Firebase BOM (DEBE IR PRIMERO)
+    // ✅ Firebase BOM (controla todas las versiones)
     implementation(platform("com.google.firebase:firebase-bom:32.7.0"))
 
-    // Firebase (las versiones las maneja el BOM)
+    // ✅ Firebase (SIN especificar versiones, las maneja el BOM)
+    implementation("com.google.firebase:firebase-firestore-ktx")
     implementation("com.google.firebase:firebase-storage-ktx")
     implementation("com.google.firebase:firebase-functions-ktx")
     implementation("com.google.firebase:firebase-auth-ktx")
@@ -126,11 +127,5 @@ dependencies {
     androidTestImplementation("androidx.compose.ui:ui-test-junit4")
     debugImplementation("androidx.compose.ui:ui-tooling")
     debugImplementation("androidx.compose.ui:ui-test-manifest")
-    // Firebase
-    implementation(platform("com.google.firebase:firebase-bom:32.7.0"))
-    implementation("com.google.firebase:firebase-firestore-ktx")
-    implementation("com.google.firebase:firebase-firestore-ktx:24.10.0")
-    implementation("com.google.firebase:firebase-storage-ktx")
-
-
 }
+
