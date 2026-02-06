@@ -21,7 +21,7 @@ class ProductoSyncRepository @Inject constructor(
     private var listener: ListenerRegistration? = null //r
 
     /**
-     * Sincronización inicial: descarga todos los productos de Firestore
+     * Sincronización inicial: descarga todos los productos de Firestore //
      */
     suspend fun syncInitial(): Result<Int> {
         return try {
