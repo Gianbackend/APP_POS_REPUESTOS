@@ -55,7 +55,7 @@ fun TicketScreen(
                     modifier = Modifier
                         .fillMaxSize()
                         .padding(paddingValues),
-                    contentAlignment = Alignment.Center
+                    contentAlignment = Alignment.Center//
                 ) {
                     Column(
                         horizontalAlignment = Alignment.CenterHorizontally
