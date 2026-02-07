@@ -4,19 +4,8 @@ import androidx.room.Database
 import androidx.room.RoomDatabase
 import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
-import com.example.posapp.data.local.dao.CategoriaDao
-import com.example.posapp.data.local.dao.ClienteDao
-import com.example.posapp.data.local.dao.DetalleVentaDao
-import com.example.posapp.data.local.dao.ProductoDao
-import com.example.posapp.data.local.dao.UsuarioDao
-import com.example.posapp.data.local.dao.VentaDao
-import com.example.posapp.data.local.entities.CategoriaEntity
-import com.example.posapp.data.local.entities.ClienteEntity
-import com.example.posapp.data.local.entities.DetalleVentaEntity
-import com.example.posapp.data.local.entities.ProductoEntity
-import com.example.posapp.data.local.entities.UsuarioEntity
-import com.example.posapp.data.local.entities.VentaEntity
-
+import com.example.posapp.data.local.dao.*
+import com.example.posapp.data.local.entities.*
 
 @Database(
     entities = [
@@ -27,7 +16,7 @@ import com.example.posapp.data.local.entities.VentaEntity
         VentaEntity::class,
         DetalleVentaEntity::class
     ],
-    version = 4,
+    version = 5,
     exportSchema = false
 )
 abstract class POSDatabase : RoomDatabase() {
@@ -42,26 +31,6 @@ abstract class POSDatabase : RoomDatabase() {
     companion object {
         const val DATABASE_NAME = "pos_database"
 
-        // 🆕 MIGRACIÓN 1 → 2: Agregar campos de sincronización
-        val MIGRATION_1_2 = object : Migration(1, 2) {
-            override fun migrate(database: SupportSQLiteDatabase) {
-                // Agregar columnas para sincronización con Firebase
-                database.execSQL("""
-                    ALTER TABLE productos 
-                    ADD COLUMN firebaseId TEXT
-                """)
-
-                database.execSQL("""
-                    ALTER TABLE productos 
-                    ADD COLUMN sincronizado INTEGER NOT NULL DEFAULT 0
-                """)
-
-                database.execSQL("""
-                    ALTER TABLE productos 
-                    ADD COLUMN ultimaSincronizacion INTEGER
-                """)
-            }
-        }
         // Migración 2 → 3: usuarios Long → String
         val MIGRATION_2_3 = object : Migration(2, 3) {
             override fun migrate(database: SupportSQLiteDatabase) {
@@ -88,10 +57,9 @@ abstract class POSDatabase : RoomDatabase() {
             }
         }
 
-        // ✅ NUEVA: Migración 3 → 4: ventas.usuarioId Long → String
+        // Migración 3 → 4: ventas.usuarioId Long → String
         val MIGRATION_3_4 = object : Migration(3, 4) {
             override fun migrate(database: SupportSQLiteDatabase) {
-                // Crear tabla temporal
                 database.execSQL("""
                     CREATE TABLE ventas_new (
                         id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
@@ -113,7 +81,6 @@ abstract class POSDatabase : RoomDatabase() {
                     )
                 """)
 
-                // Copiar datos (convertir usuarioId a String)
                 database.execSQL("""
                     INSERT INTO ventas_new 
                     SELECT id, numeroVenta, CAST(usuarioId AS TEXT), clienteId, 
@@ -122,18 +89,52 @@ abstract class POSDatabase : RoomDatabase() {
                     FROM ventas
                 """)
 
-                // Eliminar tabla vieja
                 database.execSQL("DROP TABLE ventas")
-
-                // Renombrar
                 database.execSQL("ALTER TABLE ventas_new RENAME TO ventas")
-
-                // Recrear índices
                 database.execSQL("CREATE INDEX index_ventas_usuarioId ON ventas(usuarioId)")
                 database.execSQL("CREATE INDEX index_ventas_clienteId ON ventas(clienteId)")
                 database.execSQL("CREATE UNIQUE INDEX index_ventas_numeroVenta ON ventas(numeroVenta)")
             }
         }
+
+        // ✅ NUEVA: Migración 4 → 5: Categorías con IDs fijos
+        val MIGRATION_4_5 = object : Migration(4, 5) {
+            override fun migrate(database: SupportSQLiteDatabase) {
+                // 1. Eliminar productos (por foreign key)
+                database.execSQL("DELETE FROM productos")
+
+                // 2. Eliminar categorías viejas
+                database.execSQL("DELETE FROM categorias")
+
+                // 3. Recrear tabla categorías sin autoGenerate
+                database.execSQL("DROP TABLE categorias")
+                database.execSQL("""
+                    CREATE TABLE categorias (
+                        id INTEGER PRIMARY KEY NOT NULL,
+                        nombre TEXT NOT NULL,
+                        descripcion TEXT NOT NULL DEFAULT '',
+                        icono TEXT NOT NULL DEFAULT 'category',
+                        color TEXT NOT NULL DEFAULT '#2196F3',
+                        activo INTEGER NOT NULL DEFAULT 1,
+                        fechaCreacion INTEGER NOT NULL
+                    )
+                """)
+
+                // 4. Insertar categorías con IDs fijos
+                val timestamp = System.currentTimeMillis()
+                database.execSQL("""
+                    INSERT INTO categorias (id, nombre, descripcion, color, activo, fechaCreacion) VALUES
+                    (1, 'Lubricantes', 'Aceites y grasas', '#FDD835', 1, $timestamp),
+                    (2, 'Filtros', 'Filtros de aire y aceite', '#00ACC1', 1, $timestamp),
+                    (3, 'Sistema Eléctrico', 'Baterías y bujías', '#1E88E5', 1, $timestamp),
+                    (4, 'Sistema de Frenos', 'Pastillas y discos', '#E53935', 1, $timestamp),
+                    (5, 'Suspensión', 'Amortiguadores', '#FB8C00', 1, $timestamp),
+                    (6, 'Transmisión', 'Embrague y cadenas', '#8E24AA', 1, $timestamp)
+                """)
+
+                // 5. Recrear índice
+                database.execSQL("CREATE UNIQUE INDEX index_categorias_nombre ON categorias(nombre)")
+            }
+        }
     }
 }
-

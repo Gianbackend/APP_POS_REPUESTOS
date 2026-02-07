@@ -10,12 +10,14 @@ import com.example.posapp.domain.model.Categoria
     indices = [Index(value = ["nombre"], unique = true)]
 )
 data class CategoriaEntity(
-    @PrimaryKey(autoGenerate = true)
-    val id: Long = 0,
+    @PrimaryKey // ✅ SIN autoGenerate
+    val id: Long, // ✅ ID manual
     val nombre: String,
     val descripcion: String = "",
     val icono: String = "category",
-    val color: String = "#2196F3"
+    val color: String = "#2196F3",
+    val activo: Boolean = true,
+    val fechaCreacion: Long = System.currentTimeMillis()
 ) {
     fun toDomain() = Categoria(
         id = id,

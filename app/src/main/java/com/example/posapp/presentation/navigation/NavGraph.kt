@@ -9,7 +9,7 @@ import com.example.posapp.presentation.login.LoginScreen
 import com.example.posapp.presentation.productos.ProductosScreen
 import com.example.posapp.presentation.productos.ProductoDetailScreen
 import com.example.posapp.presentation.venta.VentaScreen
-import com.example.posapp.presentation.ticket.TicketScreen  // ← NUEVO
+import com.example.posapp.presentation.ticket.TicketScreen
 
 @Composable
 fun NavGraph(
@@ -32,7 +32,7 @@ fun NavGraph(
 
         composable(route = Screen.Home.route) {
             HomeScreen(
-                onNavigateToProductos = {
+                onNavigateToCatalogo = { // ← CORREGIDO
                     navController.navigate(Screen.Productos.route) {
                         popUpTo(Screen.Home.route) { inclusive = true }
                     }
@@ -64,21 +64,17 @@ fun NavGraph(
                 onNavigateBack = {
                     navController.popBackStack()
                 },
-                onVentaCompletada = { ventaId ->  // ← CAMBIO: ahora recibe ventaId
-                    // Navegar al ticket con el ID de la venta
+                onVentaCompletada = { ventaId ->
                     navController.navigate(Screen.Ticket.createRoute(ventaId)) {
-                        // Limpiar el back stack (carrito y productos)
                         popUpTo(Screen.Productos.route) { inclusive = false }
                     }
                 }
             )
         }
 
-        // NUEVA RUTA: Ticket
         composable(route = Screen.Ticket.route) {
             TicketScreen(
                 onNavigateToCatalogo = {
-                    // Volver al catálogo limpiando el ticket del back stack
                     navController.navigate(Screen.Productos.route) {
                         popUpTo(Screen.Productos.route) { inclusive = true }
                     }

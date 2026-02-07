@@ -14,10 +14,10 @@ interface CategoriaDao {
     suspend fun getById(id: Long): CategoriaEntity?
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun insert(categoria: CategoriaEntity): Long
+    suspend fun insertAll(categorias: List<CategoriaEntity>)
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun insertAll(categorias: List<CategoriaEntity>)
+    suspend fun insert(categoria: CategoriaEntity): Long
 
     @Update
     suspend fun update(categoria: CategoriaEntity)

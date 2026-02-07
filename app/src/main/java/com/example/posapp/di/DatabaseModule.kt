@@ -3,7 +3,6 @@ package com.example.posapp.di
 import android.content.Context
 import androidx.room.Room
 import androidx.room.RoomDatabase
-import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
 import com.example.posapp.data.firebase.FirebaseStorageManager
 import com.example.posapp.data.local.dao.*
@@ -25,37 +24,6 @@ import javax.inject.Singleton
 @InstallIn(SingletonComponent::class)
 object DatabaseModule {
 
-    // ✅ NUEVA: Migración 2 → 3 (cambiar id de Long a String en usuarios)
-    private val MIGRATION_2_3 = object : Migration(2, 3) {
-        override fun migrate(database: SupportSQLiteDatabase) {
-            // 1. Crear tabla temporal con id String
-            database.execSQL("""
-                CREATE TABLE usuarios_new (
-                    id TEXT PRIMARY KEY NOT NULL,
-                    nombre TEXT NOT NULL,
-                    email TEXT NOT NULL,
-                    passwordHash TEXT NOT NULL,
-                    rol TEXT NOT NULL,
-                    activo INTEGER NOT NULL DEFAULT 1,
-                    fechaCreacion INTEGER NOT NULL
-                )
-            """)
-
-            // 2. Copiar datos existentes (convertir id a String)
-            database.execSQL("""
-                INSERT INTO usuarios_new (id, nombre, email, passwordHash, rol, activo, fechaCreacion)
-                SELECT CAST(id AS TEXT), nombre, email, passwordHash, rol, activo, fechaCreacion
-                FROM usuarios
-            """)
-
-            // 3. Eliminar tabla vieja
-            database.execSQL("DROP TABLE usuarios")
-
-            // 4. Renombrar tabla nueva
-            database.execSQL("ALTER TABLE usuarios_new RENAME TO usuarios")
-        }
-    }
-
     @Provides
     @Singleton
     fun provideDatabase(
@@ -75,59 +43,42 @@ object DatabaseModule {
                 }
             })
             .addMigrations(
-                POSDatabase.MIGRATION_1_2,
                 POSDatabase.MIGRATION_2_3,
-                POSDatabase.MIGRATION_3_4 // ✅ AGREGAR
+                POSDatabase.MIGRATION_3_4,
+                POSDatabase.MIGRATION_4_5 // ✅ AGREGAR
             )
-            .fallbackToDestructiveMigration() // ✅ Si falla, borra todo
+            .fallbackToDestructiveMigration()
             .build()
     }
 
     @Provides
-    fun provideUsuarioDao(database: POSDatabase): UsuarioDao {
-        return database.usuarioDao()
-    }
+    fun provideUsuarioDao(database: POSDatabase): UsuarioDao = database.usuarioDao()
 
     @Provides
-    fun provideCategoriaDao(database: POSDatabase): CategoriaDao {
-        return database.categoriaDao()
-    }
+    fun provideCategoriaDao(database: POSDatabase): CategoriaDao = database.categoriaDao()
 
     @Provides
-    fun provideProductoDao(database: POSDatabase): ProductoDao {
-        return database.productoDao()
-    }
+    fun provideProductoDao(database: POSDatabase): ProductoDao = database.productoDao()
 
     @Provides
-    fun provideClienteDao(database: POSDatabase): ClienteDao {
-        return database.clienteDao()
-    }
+    fun provideClienteDao(database: POSDatabase): ClienteDao = database.clienteDao()
 
     @Provides
-    fun provideVentaDao(database: POSDatabase): VentaDao {
-        return database.ventaDao()
-    }
+    fun provideVentaDao(database: POSDatabase): VentaDao = database.ventaDao()
 
     @Provides
-    fun provideDetalleVentaDao(database: POSDatabase): DetalleVentaDao {
-        return database.detalleVentaDao()
-    }
+    fun provideDetalleVentaDao(database: POSDatabase): DetalleVentaDao = database.detalleVentaDao()
 
     @Provides
     @Singleton
-    fun provideFirebaseStorageManager(): FirebaseStorageManager {
-        return FirebaseStorageManager()
-    }
+    fun provideFirebaseStorageManager(): FirebaseStorageManager = FirebaseStorageManager()
 
     @Provides
     @Singleton
     fun provideProductoSyncRepository(
         firestore: FirebaseFirestore,
         productoDao: ProductoDao
-    ): ProductoSyncRepository {
-        return ProductoSyncRepository(firestore, productoDao)
-    }
-
+    ): ProductoSyncRepository = ProductoSyncRepository(firestore, productoDao)
 
     private suspend fun insertarDatosIniciales(context: Context) {
         val db = Room.databaseBuilder(
@@ -149,14 +100,16 @@ object DatabaseModule {
                 )
             )
 
-            // ✅ Categorías (necesarias para relación FK)
+            // ✅ Categorías con IDs FIJOS
             val categorias = listOf(
-                CategoriaEntity(nombre = "Frenos", descripcion = "Sistema de frenado", color = "#E53935"),
-                CategoriaEntity(nombre = "Motor", descripcion = "Repuestos de motor", color = "#1E88E5"),
-                CategoriaEntity(nombre = "Filtros", descripcion = "Filtros de aire y aceite", color = "#00ACC1"),
-                CategoriaEntity(nombre = "Lubricantes", descripcion = "Aceites y grasas", color = "#FDD835"),
-                CategoriaEntity(nombre = "Transmisión", descripcion = "Cadenas y piñones", color = "#FB8C00")
+                CategoriaEntity(id = 1, nombre = "Lubricantes", descripcion = "Aceites y grasas", color = "#FDD835"),
+                CategoriaEntity(id = 2, nombre = "Filtros", descripcion = "Filtros de aire y aceite", color = "#00ACC1"),
+                CategoriaEntity(id = 3, nombre = "Sistema Eléctrico", descripcion = "Baterías y bujías", color = "#1E88E5"),
+                CategoriaEntity(id = 4, nombre = "Sistema de Frenos", descripcion = "Pastillas y discos", color = "#E53935"),
+                CategoriaEntity(id = 5, nombre = "Suspensión", descripcion = "Amortiguadores", color = "#FB8C00"),
+                CategoriaEntity(id = 6, nombre = "Transmisión", descripcion = "Embrague y cadenas", color = "#8E24AA")
             )
+
             db.categoriaDao().insertAll(categorias)
 
         } catch (e: Exception) {
