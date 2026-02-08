@@ -17,7 +17,8 @@ data class CategoriaEntity(
     val icono: String = "category",
     val color: String = "#2196F3",
     val activo: Boolean = true,
-    val fechaCreacion: Long = System.currentTimeMillis()
+    val fechaCreacion: Long = System.currentTimeMillis(),
+    val firebaseId: String = ""
 ) {
     fun toDomain() = Categoria(
         id = id,

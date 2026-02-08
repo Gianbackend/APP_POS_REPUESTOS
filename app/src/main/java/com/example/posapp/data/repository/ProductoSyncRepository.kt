@@ -1,11 +1,15 @@
 package com.example.posapp.data.repository
 
 import android.util.Log
+import com.example.posapp.data.local.dao.CategoriaDao
 import com.example.posapp.data.local.dao.ProductoDao
+import com.example.posapp.data.local.entities.CategoriaEntity
 import com.example.posapp.data.local.entities.ProductoEntity
-import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.Timestamp
+import com.google.firebase.firestore.FirebaseFirestore
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.tasks.await
+import kotlinx.coroutines.withContext
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -13,83 +17,89 @@ import javax.inject.Singleton
 class ProductoSyncRepository @Inject constructor(
     private val firestore: FirebaseFirestore,
     private val productoDao: ProductoDao,
-    private val categoriaSyncRepository: CategoriaSyncRepository // ✅ INYECTAR
+    private val categoriaDao: CategoriaDao
 ) {
     private val TAG = "ProductoSync"
 
-    suspend fun syncProductos(): Result<Int> {
-        return try {
+    suspend fun syncProductos(): Result<Unit> = withContext(Dispatchers.IO) {
+        try {
             Log.d(TAG, "🔄 Iniciando sincronización...")
 
-            // ✅ 1️⃣ PRIMERO: Sincronizar categorías
-            Log.d(TAG, "📦 Sincronizando categorías primero...")
-            val categoriasResult = categoriaSyncRepository.syncCategorias()
-
-            if (categoriasResult.isFailure) {
-                Log.e(TAG, "❌ Error al sincronizar categorías")
-                return Result.failure(categoriasResult.exceptionOrNull()!!)
-            }
-
-            Log.d(TAG, "✅ Categorías sincronizadas: ${categoriasResult.getOrNull()} registros")
-
-            // ✅ 2️⃣ DESPUÉS: Sincronizar productos
-            Log.d(TAG, "📡 Conectando a Firestore para productos...")
-            val snapshot = firestore.collection("productos")
+            // Obtener productos de Firebase
+            val productosSnapshot = firestore
+                .collection("productos")
                 .get()
                 .await()
 
-            Log.d(TAG, "📦 Documentos recibidos: ${snapshot.size()}")
+            Log.d(TAG, "📊 Productos obtenidos: ${productosSnapshot.size()}")
 
-            if (snapshot.isEmpty) {
-                Log.w(TAG, "⚠️ No hay productos en Firestore")
-                return Result.success(0)
+            if (productosSnapshot.isEmpty) {
+                Log.w(TAG, "⚠️ No hay productos en Firebase")
+                return@withContext Result.success(Unit)
             }
 
-            // 2️⃣ Convertir a ProductoEntity
-            val productos = snapshot.documents.mapNotNull { doc ->
+            // Extraer categorías únicas
+            val categoriasUnicas = productosSnapshot.documents
+                .mapNotNull { it.getString("categoria") }
+                .distinct()
+
+            Log.d(TAG, "📊 Categorías únicas: ${categoriasUnicas.size}")
+
+            // Guardar categorías
+            val categorias = categoriasUnicas.mapIndexed { index, nombreCategoria ->
+                CategoriaEntity(
+                    id = (index + 1).toLong(),
+                    nombre = nombreCategoria,
+                    firebaseId = nombreCategoria.hashCode().toString()
+                )
+            }
+            categoriaDao.insertAll(categorias)
+
+            // Guardar productos
+            val productos = productosSnapshot.documents.mapNotNull { doc ->
                 try {
-                    Log.d(TAG, "📝 Procesando: ${doc.id}")
+                    val categoriaStr = doc.getString("categoria") ?: ""
+                    val categoriaIndex = categoriasUnicas.indexOf(categoriaStr)
+
+                    // 🔥 MANEJO FLEXIBLE DE fechaCreacion
+                    val fechaCreacion = when (val fecha = doc.get("fechaCreacion")) {
+                        is Long -> fecha
+                        is Timestamp -> fecha.toDate().time
+                        is String -> fecha.toLongOrNull() ?: System.currentTimeMillis()
+                        else -> System.currentTimeMillis()
+                    }
+
                     ProductoEntity(
-                        id = 0,
-                        codigo = doc.getString("codigo") ?: return@mapNotNull null,
-                        nombre = doc.getString("nombre") ?: return@mapNotNull null,
+                        id = 0L,
+                        codigo = doc.getString("codigo") ?: "",
+                        nombre = doc.getString("nombre") ?: "",
                         descripcion = doc.getString("descripcion") ?: "",
                         marca = doc.getString("marca") ?: "",
                         modelo = doc.getString("modelo") ?: "",
                         precio = doc.getDouble("precio") ?: 0.0,
                         stock = doc.getLong("stock")?.toInt() ?: 0,
                         stockMinimo = doc.getLong("stockMinimo")?.toInt() ?: 5,
-                        categoriaId = doc.getLong("categoriaId") ?: 1,
+                        categoriaId = (categoriaIndex + 1).toLong(),
                         imagenUrl = doc.getString("imagenUrl"),
                         ubicacion = doc.getString("ubicacion"),
                         activo = doc.getBoolean("activo") ?: true,
-                        fechaCreacion = (doc.get("fechaCreacion") as? Timestamp)?.toDate()?.time
-                            ?: System.currentTimeMillis(),
+                        fechaCreacion = fechaCreacion,
                         firebaseId = doc.id,
                         sincronizado = true,
                         ultimaSincronizacion = System.currentTimeMillis()
                     )
                 } catch (e: Exception) {
-                    Log.e(TAG, "❌ Error parseando ${doc.id}: ${e.message}")
+                    Log.e(TAG, "❌ Error procesando producto: ${doc.id}", e)
                     null
                 }
             }
 
-            Log.d(TAG, "✅ Productos válidos: ${productos.size}")
-
-            // 3️⃣ Reemplazar todo en Room
-            Log.d(TAG, "🗑️ Limpiando base de datos local...")
-            productoDao.deleteAll()
-
-            Log.d(TAG, "💾 Guardando ${productos.size} productos...")
             productoDao.insertAll(productos)
-
-            Log.d(TAG, "✅ ${productos.size} productos sincronizados correctamente")
-            Result.success(productos.size)
+            Log.d(TAG, "✅ Sincronización completada: ${productos.size} productos")
+            Result.success(Unit)
 
         } catch (e: Exception) {
-            Log.e(TAG, "❌ ERROR CRÍTICO: ${e.message}", e)
-            Log.e(TAG, "Stack trace: ${e.stackTraceToString()}")
+            Log.e(TAG, "❌ Error en sincronización", e)
             Result.failure(e)
         }
     }

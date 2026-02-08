@@ -13,11 +13,14 @@ interface CategoriaDao {
     @Query("SELECT * FROM categorias WHERE id = :id")
     suspend fun getById(id: Long): CategoriaEntity?
 
-    @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun insertAll(categorias: List<CategoriaEntity>)
+    @Query("SELECT * FROM categorias WHERE firebaseId = :firebaseId")
+    suspend fun getByFirebaseId(firebaseId: String): CategoriaEntity? // ✅ Agregado tipo de retorno
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insert(categoria: CategoriaEntity): Long
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertAll(categorias: List<CategoriaEntity>)
 
     @Update
     suspend fun update(categoria: CategoriaEntity)

@@ -79,11 +79,11 @@ object DatabaseModule {
     fun provideProductoSyncRepository(
         firestore: FirebaseFirestore,
         productoDao: ProductoDao,
-        categoriaSyncRepository: CategoriaSyncRepository // ✅ AGREGAR
+        categoriaDao: CategoriaDao
     ): ProductoSyncRepository = ProductoSyncRepository(
         firestore,
         productoDao,
-        categoriaSyncRepository // ✅ PASAR
+        categoriaDao
     )
 
     @Provides

@@ -14,4 +14,7 @@ interface DetalleVentaDao {
 
     @Query("DELETE FROM detalle_ventas WHERE ventaId = :ventaId")
     suspend fun deleteByVenta(ventaId: Long)
+
+    @Query("DELETE FROM detalle_ventas")
+    suspend fun deleteAll()
 }

@@ -34,4 +34,7 @@ interface VentaDao {
 
     @Query("UPDATE ventas SET sincronizado = 1 WHERE id = :id")
     suspend fun marcarComoSincronizada(id: Long)
+
+    @Query("DELETE FROM ventas")
+    suspend fun deleteAll()
 }
