@@ -25,7 +25,7 @@ fun ProductoDetailScreen(
 ) {
     val state by viewModel.state.collectAsState()
 
-    // Mostrar Snackbar cuando se agrega al carrito
+        // Mostrar Snackbar cuando se agrega al carrito
     LaunchedEffect(state.agregadoAlCarrito) {
         if (state.agregadoAlCarrito) {
             // Esperar un momento y resetear

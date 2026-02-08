@@ -152,7 +152,7 @@ private fun SearchBar(
     OutlinedTextField(
         value = query,
         onValueChange = onQueryChange,
-        label = { Text("Buscar por material o código...") },  // ← CAMBIA placeholder por label
+        label = { Text("Buscar por material o código...") },
         leadingIcon = {
             Icon(
                 Icons.Default.Search,

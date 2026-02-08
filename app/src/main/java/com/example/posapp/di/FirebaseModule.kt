@@ -18,7 +18,6 @@ object FirebaseModule {
         val firestore = FirebaseFirestore.getInstance()
 
         val settings = FirebaseFirestoreSettings.Builder()
-            .setPersistenceEnabled(true)
             .build()
 
         firestore.firestoreSettings = settings

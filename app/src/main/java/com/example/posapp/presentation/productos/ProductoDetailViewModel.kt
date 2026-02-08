@@ -3,10 +3,11 @@ package com.example.posapp.presentation.productos
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.example.posapp.data.repository.CarritoRepository  // ← NUEVO
+import com.example.posapp.data.repository.CarritoRepository
 import com.example.posapp.data.repository.ProductoRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -15,25 +16,23 @@ import javax.inject.Inject
 @HiltViewModel
 class ProductoDetailViewModel @Inject constructor(
     private val productoRepository: ProductoRepository,
-    private val carritoRepository: CarritoRepository,  // ← NUEVO
+    private val carritoRepository: CarritoRepository,
     savedStateHandle: SavedStateHandle
 ) : ViewModel() {
+    private val productoId: Long = savedStateHandle.get<Long>("productoId") ?: 0L
 
     private val _state = MutableStateFlow(ProductoDetailState())
-    val state = _state.asStateFlow()
-
-    private val productoId: Long = savedStateHandle.get<String>("productoId")?.toLongOrNull() ?: 0L
-
+    val state: StateFlow<ProductoDetailState> = _state.asStateFlow()
     init {
         loadProducto()
     }
 
-    private fun loadProducto() {
+    internal fun loadProducto() {
         viewModelScope.launch {
             try {
                 _state.update { it.copy(isLoading = true) }
 
-                val producto = productoRepository.getProductoById(productoId)
+                val producto = productoRepository.getProductoById(productoId.toString())
 
                 if (producto != null) {
                     _state.update {
@@ -79,19 +78,16 @@ class ProductoDetailViewModel @Inject constructor(
         }
     }
 
-    // ACTUALIZADO: Ahora realmente agrega al carrito
     fun onAgregarAlCarrito() {
         val producto = _state.value.producto ?: return
         val cantidad = _state.value.cantidad
 
-        // Agregar al carrito (acumula si ya existe)
         carritoRepository.agregarProducto(producto, cantidad)
 
-        // Mostrar mensaje de confirmación
         _state.update { it.copy(agregadoAlCarrito = true) }
     }
 
     fun onResetAgregado() {
-        _state.update { it.copy(agregadoAlCarrito = false, cantidad = 1) }  // ← También resetea cantidad a 1
+        _state.update { it.copy(agregadoAlCarrito = false, cantidad = 1) }
     }
 }

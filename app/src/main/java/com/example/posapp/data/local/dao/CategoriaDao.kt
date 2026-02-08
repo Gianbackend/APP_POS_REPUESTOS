@@ -24,4 +24,7 @@ interface CategoriaDao {
 
     @Delete
     suspend fun delete(categoria: CategoriaEntity)
+
+    @Query("DELETE FROM categorias")
+    suspend fun deleteAll()
 }

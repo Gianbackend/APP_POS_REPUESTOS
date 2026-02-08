@@ -20,6 +20,7 @@ import java.util.*
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun TicketScreen(
+
     onNavigateToCatalogo: () -> Unit,  // Volver al catálogo
     viewModel: TicketViewModel = hiltViewModel()
 ) {

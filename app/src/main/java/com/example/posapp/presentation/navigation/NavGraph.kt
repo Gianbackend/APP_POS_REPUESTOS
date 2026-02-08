@@ -1,9 +1,12 @@
 package com.example.posapp.presentation.navigation
 
+import android.util.Log
 import androidx.compose.runtime.Composable
 import androidx.navigation.NavHostController
+import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
+import androidx.navigation.navArgument
 import com.example.posapp.presentation.home.HomeScreen
 import com.example.posapp.presentation.login.LoginScreen
 import com.example.posapp.presentation.productos.ProductosScreen
@@ -32,15 +35,18 @@ fun NavGraph(
 
         composable(route = Screen.Home.route) {
             HomeScreen(
-                onNavigateToCatalogo = { // ← CORREGIDO
+                onNavigateToCatalogo = {
+                    Log.d("NavGraph", "🚀 Navegando a productos...")
                     navController.navigate(Screen.Productos.route) {
                         popUpTo(Screen.Home.route) { inclusive = true }
                     }
+                    Log.d("NavGraph", "✅ Navegación ejecutada")
                 }
             )
         }
 
         composable(route = Screen.Productos.route) {
+            Log.d("NavGraph", "📦 ProductosScreen CARGADO")
             ProductosScreen(
                 onProductoClick = { productoId ->
                     navController.navigate(Screen.ProductoDetail.createRoute(productoId))
@@ -51,8 +57,15 @@ fun NavGraph(
             )
         }
 
-        composable(route = Screen.ProductoDetail.route) {
+        composable(
+            route = Screen.ProductoDetail.route,
+            arguments = listOf(
+                navArgument("productoId") { type = NavType.LongType }
+            )
+        ) { _ ->
+
             ProductoDetailScreen(
+
                 onNavigateBack = {
                     navController.popBackStack()
                 }
@@ -72,8 +85,15 @@ fun NavGraph(
             )
         }
 
-        composable(route = Screen.Ticket.route) {
+        composable(
+            route = Screen.Ticket.route,
+            arguments = listOf(
+                navArgument("ventaId") { type = NavType.LongType }
+            )
+        ) { _ ->
+
             TicketScreen(
+
                 onNavigateToCatalogo = {
                     navController.navigate(Screen.Productos.route) {
                         popUpTo(Screen.Productos.route) { inclusive = true }

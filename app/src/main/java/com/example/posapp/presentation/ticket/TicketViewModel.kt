@@ -25,14 +25,14 @@ class TicketViewModel @Inject constructor(
     val state = _state.asStateFlow()
 
     // Obtener ID de la venta desde argumentos de navegación
-    private val ventaId: Long = savedStateHandle.get<String>("ventaId")?.toLongOrNull() ?: 0L
+    private val ventaId: Long = savedStateHandle.get<Long>("ventaId") ?: 0L
 
     init {
         loadVenta()
     }
 
     // Cargar datos de la venta
-    private fun loadVenta() {
+    internal fun loadVenta() {
         viewModelScope.launch {
             try {
                 _state.update { it.copy(isLoading = true) }
@@ -64,7 +64,7 @@ class TicketViewModel @Inject constructor(
 
                 // Convertir detalles a ItemTicket (con nombre del producto)
                 val items = detalles.map { detalle ->
-                    val producto = productoRepository.getProductoById(detalle.productoId)
+                    val producto = productoRepository.getProductoById(detalle.productoId.toString())
 
                     ItemTicket(
                         nombreProducto = producto?.nombre ?: "Producto desconocido",

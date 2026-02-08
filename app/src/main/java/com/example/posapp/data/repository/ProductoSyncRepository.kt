@@ -12,20 +12,28 @@ import javax.inject.Singleton
 @Singleton
 class ProductoSyncRepository @Inject constructor(
     private val firestore: FirebaseFirestore,
-    private val productoDao: ProductoDao
+    private val productoDao: ProductoDao,
+    private val categoriaSyncRepository: CategoriaSyncRepository // ✅ INYECTAR
 ) {
     private val TAG = "ProductoSync"
 
-    /**
-     * Sincroniza productos desde Firestore a Room
-     * Se ejecuta solo al iniciar sesión
-     */
     suspend fun syncProductos(): Result<Int> {
         return try {
             Log.d(TAG, "🔄 Iniciando sincronización...")
-            Log.d(TAG, "📡 Conectando a Firestore...")
 
-            // 1️⃣ Descargar de Firestore
+            // ✅ 1️⃣ PRIMERO: Sincronizar categorías
+            Log.d(TAG, "📦 Sincronizando categorías primero...")
+            val categoriasResult = categoriaSyncRepository.syncCategorias()
+
+            if (categoriasResult.isFailure) {
+                Log.e(TAG, "❌ Error al sincronizar categorías")
+                return Result.failure(categoriasResult.exceptionOrNull()!!)
+            }
+
+            Log.d(TAG, "✅ Categorías sincronizadas: ${categoriasResult.getOrNull()} registros")
+
+            // ✅ 2️⃣ DESPUÉS: Sincronizar productos
+            Log.d(TAG, "📡 Conectando a Firestore para productos...")
             val snapshot = firestore.collection("productos")
                 .get()
                 .await()

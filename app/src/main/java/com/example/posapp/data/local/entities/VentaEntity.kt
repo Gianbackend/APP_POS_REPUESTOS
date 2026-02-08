@@ -7,21 +7,30 @@ import androidx.room.PrimaryKey
 import com.example.posapp.data.local.entities.ClienteEntity
 import com.example.posapp.data.local.entities.UsuarioEntity
 
+//@Entity(
+//    tableName = "ventas",
+//    foreignKeys = [
+//        ForeignKey(
+//            entity = UsuarioEntity::class,
+//            parentColumns = ["id"],
+//            childColumns = ["usuarioId"]
+//        ),
+//        ForeignKey(
+//            entity = ClienteEntity::class,
+//            parentColumns = ["id"],
+//            childColumns = ["clienteId"],
+//            onDelete = ForeignKey.SET_NULL
+//        )
+//    ],
+//    indices = [
+//        Index(value = ["numeroVenta"], unique = true),
+//        Index(value = ["usuarioId"]),
+//        Index(value = ["clienteId"])
+//    ]
+//)
 @Entity(
     tableName = "ventas",
-    foreignKeys = [
-        ForeignKey(
-            entity = UsuarioEntity::class,
-            parentColumns = ["id"],
-            childColumns = ["usuarioId"]
-        ),
-        ForeignKey(
-            entity = ClienteEntity::class,
-            parentColumns = ["id"],
-            childColumns = ["clienteId"],
-            onDelete = ForeignKey.SET_NULL
-        )
-    ],
+    // ❌ QUITAR foreignKeys
     indices = [
         Index(value = ["numeroVenta"], unique = true),
         Index(value = ["usuarioId"]),

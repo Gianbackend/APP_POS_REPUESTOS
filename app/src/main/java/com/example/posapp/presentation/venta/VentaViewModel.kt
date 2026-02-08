@@ -19,6 +19,7 @@ import kotlinx.coroutines.launch
 import java.util.concurrent.atomic.AtomicBoolean
 import javax.inject.Inject
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.delay
 
 @HiltViewModel
 class VentaViewModel @Inject constructor(
@@ -209,7 +210,12 @@ class VentaViewModel @Inject constructor(
                     )
                 }
                 android.util.Log.d("VentaVM", "✅ State actualizado con ventaCompletada=true")
-
+            // ✅ NUEVO: Reset automático
+                viewModelScope.launch {
+                    delay(5000)
+                    android.util.Log.d("VentaVM", "🔄 Reset automático después de navegación")
+                    onResetVentaCompletada()
+                }
             } else {
                 val error = result.exceptionOrNull()?.message ?: "Error al procesar la venta"
                 _state.update {

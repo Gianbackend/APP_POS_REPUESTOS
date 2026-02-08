@@ -45,6 +45,7 @@ private val LightColorScheme = lightColorScheme(
 
 
 @Composable
+@Suppress("UNUSED_PARAMETER")
 fun POSAppTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
     dynamicColor: Boolean = false,

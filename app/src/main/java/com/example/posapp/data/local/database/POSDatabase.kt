@@ -33,8 +33,8 @@ abstract class POSDatabase : RoomDatabase() {
 
         // Migración 2 → 3: usuarios Long → String
         val MIGRATION_2_3 = object : Migration(2, 3) {
-            override fun migrate(database: SupportSQLiteDatabase) {
-                database.execSQL("""
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("""
                     CREATE TABLE usuarios_new (
                         id TEXT PRIMARY KEY NOT NULL,
                         nombre TEXT NOT NULL,
@@ -46,21 +46,21 @@ abstract class POSDatabase : RoomDatabase() {
                     )
                 """)
 
-                database.execSQL("""
+                db.execSQL("""
                     INSERT INTO usuarios_new (id, nombre, email, passwordHash, rol, activo, fechaCreacion)
                     SELECT CAST(id AS TEXT), nombre, email, passwordHash, rol, activo, fechaCreacion
                     FROM usuarios
                 """)
 
-                database.execSQL("DROP TABLE usuarios")
-                database.execSQL("ALTER TABLE usuarios_new RENAME TO usuarios")
+                db.execSQL("DROP TABLE usuarios")
+                db.execSQL("ALTER TABLE usuarios_new RENAME TO usuarios")
             }
         }
 
         // Migración 3 → 4: ventas.usuarioId Long → String
         val MIGRATION_3_4 = object : Migration(3, 4) {
-            override fun migrate(database: SupportSQLiteDatabase) {
-                database.execSQL("""
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("""
                     CREATE TABLE ventas_new (
                         id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
                         numeroVenta TEXT NOT NULL,
@@ -81,7 +81,7 @@ abstract class POSDatabase : RoomDatabase() {
                     )
                 """)
 
-                database.execSQL("""
+                db.execSQL("""
                     INSERT INTO ventas_new 
                     SELECT id, numeroVenta, CAST(usuarioId AS TEXT), clienteId, 
                            subtotal, descuento, impuesto, total, metodoPago, 
@@ -89,26 +89,26 @@ abstract class POSDatabase : RoomDatabase() {
                     FROM ventas
                 """)
 
-                database.execSQL("DROP TABLE ventas")
-                database.execSQL("ALTER TABLE ventas_new RENAME TO ventas")
-                database.execSQL("CREATE INDEX index_ventas_usuarioId ON ventas(usuarioId)")
-                database.execSQL("CREATE INDEX index_ventas_clienteId ON ventas(clienteId)")
-                database.execSQL("CREATE UNIQUE INDEX index_ventas_numeroVenta ON ventas(numeroVenta)")
+                db.execSQL("DROP TABLE ventas")
+                db.execSQL("ALTER TABLE ventas_new RENAME TO ventas")
+                db.execSQL("CREATE INDEX index_ventas_usuarioId ON ventas(usuarioId)")
+                db.execSQL("CREATE INDEX index_ventas_clienteId ON ventas(clienteId)")
+                db.execSQL("CREATE UNIQUE INDEX index_ventas_numeroVenta ON ventas(numeroVenta)")
             }
         }
 
         // ✅ NUEVA: Migración 4 → 5: Categorías con IDs fijos
         val MIGRATION_4_5 = object : Migration(4, 5) {
-            override fun migrate(database: SupportSQLiteDatabase) {
+            override fun migrate(db: SupportSQLiteDatabase) {
                 // 1. Eliminar productos (por foreign key)
-                database.execSQL("DELETE FROM productos")
+                db.execSQL("DELETE FROM productos")
 
                 // 2. Eliminar categorías viejas
-                database.execSQL("DELETE FROM categorias")
+                db.execSQL("DELETE FROM categorias")
 
                 // 3. Recrear tabla categorías sin autoGenerate
-                database.execSQL("DROP TABLE categorias")
-                database.execSQL("""
+                db.execSQL("DROP TABLE categorias")
+                db.execSQL("""
                     CREATE TABLE categorias (
                         id INTEGER PRIMARY KEY NOT NULL,
                         nombre TEXT NOT NULL,
@@ -122,7 +122,7 @@ abstract class POSDatabase : RoomDatabase() {
 
                 // 4. Insertar categorías con IDs fijos
                 val timestamp = System.currentTimeMillis()
-                database.execSQL("""
+                db.execSQL("""
                     INSERT INTO categorias (id, nombre, descripcion, color, activo, fechaCreacion) VALUES
                     (1, 'Lubricantes', 'Aceites y grasas', '#FDD835', 1, $timestamp),
                     (2, 'Filtros', 'Filtros de aire y aceite', '#00ACC1', 1, $timestamp),
@@ -133,7 +133,7 @@ abstract class POSDatabase : RoomDatabase() {
                 """)
 
                 // 5. Recrear índice
-                database.execSQL("CREATE UNIQUE INDEX index_categorias_nombre ON categorias(nombre)")
+                db.execSQL("CREATE UNIQUE INDEX index_categorias_nombre ON categorias(nombre)")
             }
         }
     }

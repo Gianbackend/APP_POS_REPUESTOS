@@ -13,7 +13,7 @@ data class CategoriaEntity(
     @PrimaryKey // ✅ SIN autoGenerate
     val id: Long, // ✅ ID manual
     val nombre: String,
-    val descripcion: String = "",
+    val descripcion: String? = null,
     val icono: String = "category",
     val color: String = "#2196F3",
     val activo: Boolean = true,

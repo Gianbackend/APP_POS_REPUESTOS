@@ -8,6 +8,7 @@ import com.example.posapp.data.firebase.FirebaseStorageManager
 import com.example.posapp.data.local.dao.*
 import com.example.posapp.data.local.database.POSDatabase
 import com.example.posapp.data.local.entities.*
+import com.example.posapp.data.repository.CategoriaSyncRepository
 import com.example.posapp.data.repository.ProductoSyncRepository
 import com.google.firebase.firestore.FirebaseFirestore
 import dagger.Module
@@ -77,8 +78,20 @@ object DatabaseModule {
     @Singleton
     fun provideProductoSyncRepository(
         firestore: FirebaseFirestore,
-        productoDao: ProductoDao
-    ): ProductoSyncRepository = ProductoSyncRepository(firestore, productoDao)
+        productoDao: ProductoDao,
+        categoriaSyncRepository: CategoriaSyncRepository // ✅ AGREGAR
+    ): ProductoSyncRepository = ProductoSyncRepository(
+        firestore,
+        productoDao,
+        categoriaSyncRepository // ✅ PASAR
+    )
+
+    @Provides
+    @Singleton
+    fun provideCategoriaSyncRepository(
+        firestore: FirebaseFirestore,
+        categoriaDao: CategoriaDao
+    ): CategoriaSyncRepository = CategoriaSyncRepository(firestore, categoriaDao)
 
     private suspend fun insertarDatosIniciales(context: Context) {
         val db = Room.databaseBuilder(

@@ -37,12 +37,11 @@ fun VentaScreen(
     LaunchedEffect(state.ventaCompletada) {
         if (state.ventaCompletada && state.ventaId != null) {
             // ✅ Navegar INMEDIATAMENTE sin delays
-            viewModel.onPreNavigate()
             delay(1500)
             onVentaCompletada(state.ventaId!!)
-            // ✅ Esperar 3 segundos antes de resetear
-            delay(3000)
-            viewModel.onResetVentaCompletada()
+//            // ✅ Esperar 3 segundos antes de resetear
+//            delay(3000)
+//            viewModel.onResetVentaCompletada()
         }
     }
 

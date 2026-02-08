@@ -82,8 +82,9 @@ class ProductoRepository @Inject constructor(
         } else null
     }
     // Obtener un producto por ID
-    suspend fun getProductoById(id: Long): Producto? {
-        val entity = productoDao.getById(id)
+    suspend fun getProductoById(id: String): Producto? {
+        val longId = id.toLongOrNull() ?: return null
+        val entity = productoDao.getById(longId)  // ✅ Ahora pasa Long
         return if (entity != null) {
             val categoria = categoriaDao.getById(entity.categoriaId)
             entity.toDomain(categoria?.nombre ?: "Sin categoría")
