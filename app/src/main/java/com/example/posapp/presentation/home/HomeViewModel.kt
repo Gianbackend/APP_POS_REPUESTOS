@@ -31,7 +31,8 @@ class HomeViewModel @Inject constructor(
     private val _state = MutableStateFlow(HomeState())
     val state = _state.asStateFlow()
 
-    private var isCleaningDatabase = false // ✅ Flag para evitar bucle
+    private var isCleaningDatabase = false
+    private var isSyncing = false // 🔥 NUEVO: Evitar sincronizaciones simultáneas
 
     init {
         Log.d(TAG, "🟢 ViewModel inicializado")
@@ -39,10 +40,23 @@ class HomeViewModel @Inject constructor(
         viewModelScope.launch {
             FirebaseAuth.getInstance().currentUser?.let {
                 Log.d(TAG, "✅ Usuario autenticado: ${it.email}")
-                syncProductos()
+
+                // 🔥 VERIFICAR SI YA HAY DATOS ANTES DE SINCRONIZAR
+                val productosExistentes = productoDao.getAllActive().first()
+                if (productosExistentes.isNotEmpty()) {
+                    Log.d(TAG, "📦 Ya hay ${productosExistentes.size} productos en cache")
+                    _state.update {
+                        it.copy(
+                            syncCompleted = true,
+                            productosCount = productosExistentes.size
+                        )
+                    }
+                } else {
+                    Log.d(TAG, "🔄 No hay productos, iniciando sincronización...")
+                    syncProductos()
+                }
             } ?: run {
                 Log.e(TAG, "❌ Usuario NO autenticado")
-                // ✅ NO hacer nada, el HomeScreen mostrará el botón de sync
             }
         }
     }
@@ -53,13 +67,26 @@ class HomeViewModel @Inject constructor(
             return
         }
 
+        if (isSyncing) {
+            Log.w(TAG, "⚠️ Ya hay una sincronización en curso")
+            return
+        }
+
+        isSyncing = true
+
         viewModelScope.launch {
             _state.update { it.copy(isSyncing = true, syncError = null) }
 
             try {
+                // 🔥 VERIFICAR SI HAY CATEGORÍAS PRIMERO
+                val categoriasExistentes = categoriaDao.getAll().first()
+
+                if (categoriasExistentes.isEmpty()) {
+                    Log.d(TAG, "📂 No hay categorías, sincronizando desde Firebase...")
+                }
+
                 productoSyncRepository.syncProductos()
                     .onSuccess {
-                        // Obtener el conteo real de productos activos
                         val count = productoDao.getAllActive().first().size
                         Log.d(TAG, "✅ Sincronización exitosa: $count productos")
                         _state.update {
@@ -69,29 +96,34 @@ class HomeViewModel @Inject constructor(
                                 productosCount = count
                             )
                         }
+                        isSyncing = false
                     }
                     .onFailure { error ->
                         Log.e(TAG, "❌ Error: ${error.message}", error)
 
                         if (error.message?.contains("FOREIGN KEY") == true && !isCleaningDatabase) {
-                            Log.w(TAG, "⚠️ Limpiando DB corrupta...")
+                            Log.w(TAG, "⚠️ Error de integridad, limpiando DB...")
+                            isSyncing = false
                             limpiarBaseDatos()
-                        }
-
-                        _state.update {
-                            it.copy(
-                                isSyncing = false,
-                                syncError = error.message
-                            )
+                        } else {
+                            _state.update {
+                                it.copy(
+                                    isSyncing = false,
+                                    syncError = error.message
+                                )
+                            }
+                            isSyncing = false
                         }
                     }
             } catch (e: Exception) {
                 Log.e(TAG, "❌ Error inesperado: ${e.message}", e)
 
                 if (e.message?.contains("FOREIGN KEY") == true && !isCleaningDatabase) {
+                    isSyncing = false
                     limpiarBaseDatos()
                 } else {
                     _state.update { it.copy(isSyncing = false, syncError = e.message) }
+                    isSyncing = false
                 }
             }
         }
@@ -107,6 +139,9 @@ class HomeViewModel @Inject constructor(
 
         viewModelScope.launch {
             try {
+                Log.d(TAG, "🗑️ Limpiando base de datos en orden correcto...")
+
+                // 🔥 ORDEN CORRECTO: De dependientes a independientes
                 Log.d(TAG, "🗑️ Paso 1: Eliminando detalles de venta...")
                 detalleVentaDao.deleteAll()
 
@@ -119,20 +154,24 @@ class HomeViewModel @Inject constructor(
                 Log.d(TAG, "🗑️ Paso 4: Eliminando categorías...")
                 categoriaDao.deleteAll()
 
-                delay(1000)
+                delay(500) // Reducido a 500ms
 
-                Log.d(TAG, "✅ Base de datos limpiada")
+                Log.d(TAG, "✅ Base de datos limpiada correctamente")
                 isCleaningDatabase = false
+
+                // 🔥 ESPERAR UN POCO MÁS ANTES DE REINTENTAR
+                delay(1000)
 
                 Log.d(TAG, "🔄 Reintentando sincronización...")
                 syncProductos()
             } catch (e: Exception) {
                 Log.e(TAG, "❌ Error limpiando DB: ${e.message}", e)
                 isCleaningDatabase = false
+                isSyncing = false
                 _state.update {
                     it.copy(
                         isSyncing = false,
-                        syncError = "Error al limpiar base de datos"
+                        syncError = "Error al limpiar base de datos: ${e.message}"
                     )
                 }
             }
@@ -141,6 +180,7 @@ class HomeViewModel @Inject constructor(
 
     fun retrySyncProductos() {
         isCleaningDatabase = false
+        isSyncing = false
         _state.update { it.copy(syncError = null) }
         syncProductos()
     }
