@@ -3,8 +3,8 @@ package com.example.posapp.data.firebase
 import android.net.Uri
 import android.util.Log
 import com.google.firebase.ktx.Firebase
+import com.google.firebase.storage.StorageMetadata
 import com.google.firebase.storage.ktx.storage
-import com.google.firebase.storage.ktx.storageMetadata
 import kotlinx.coroutines.tasks.await
 import java.io.File
 import javax.inject.Inject
@@ -27,14 +27,14 @@ class FirebaseStorageManager @Inject constructor() {
             val fileName = "ticket_$numeroVenta.pdf"
             val fileRef = ticketsRef.child(fileName)
 
-            // Crear metadatos usando el DSL de Kotlin
-            val metadata = storageMetadata {
-                contentType = "application/pdf"
-                setCustomMetadata("customerEmail", clienteEmail)  // ✅ era "email"
-                setCustomMetadata("ticketNumber", numeroVenta)    // ✅ era "numeroVenta"
-                setCustomMetadata("totalAmount", total.toString()) // ✅ era "total"
-                setCustomMetadata("saleDate", fecha)              // ✅ era "fecha"
-            }
+            // ✅ Crear metadatos sin el DSL deprecated
+            val metadata = StorageMetadata.Builder()
+                .setContentType("application/pdf")
+                .setCustomMetadata("customerEmail", clienteEmail)
+                .setCustomMetadata("ticketNumber", numeroVenta)
+                .setCustomMetadata("totalAmount", total.toString())
+                .setCustomMetadata("saleDate", fecha)
+                .build()
 
             // Subir archivo
             val uri = Uri.fromFile(file)
