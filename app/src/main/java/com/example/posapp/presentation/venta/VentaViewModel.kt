@@ -210,6 +210,14 @@ class VentaViewModel @Inject constructor(
                     )
                 }
                 android.util.Log.d("VentaVM", "✅ State actualizado con ventaCompletada=true")
+
+                // Limpiar carrito después de venta exitosa
+                viewModelScope.launch {
+                    delay(1000) // Esperar 1 segundo para que se muestre la pantalla de confirmación
+                    carritoRepository.limpiarCarrito()
+                    android.util.Log.d("VentaVM", "🧹 Carrito limpiado después de venta exitosa")
+                }
+
             // ✅ NUEVO: Reset automático
                 viewModelScope.launch {
                     delay(5000)
