@@ -174,7 +174,8 @@ class VentaViewModel @Inject constructor(
                         subtotalSinIVA = _state.value.calcularSubtotalSinIVA(),
                         montoIVA = _state.value.calcularMontoIVA(),
                         total = _state.value.calcularTotal(),
-                        impuestoPorcentaje = _state.value.impuesto
+                        impuestoPorcentaje = _state.value.impuesto,
+                        usuarioAtendio = "Cajero Principal"
                     )
 
                     android.util.Log.d("VentaVM", "✅ PDF generado: ${pdfFile.absolutePath}")

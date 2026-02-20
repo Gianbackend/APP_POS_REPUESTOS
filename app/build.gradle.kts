@@ -127,5 +127,7 @@ dependencies {
     androidTestImplementation("androidx.compose.ui:ui-test-junit4")
     debugImplementation("androidx.compose.ui:ui-tooling")
     debugImplementation("androidx.compose.ui:ui-test-manifest")
+    // Para generar códigos QR
+    implementation("com.google.zxing:core:3.5.1")
 }
 
