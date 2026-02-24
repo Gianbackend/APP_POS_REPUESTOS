@@ -7,11 +7,11 @@ plugins {
 }
 
 android {
-    namespace = "com.example.posapp"
+    namespace = "com.posrepuestos.app"
     compileSdk = 34
 
     defaultConfig {
-        applicationId = "com.example.posapp"
+        applicationId = "com.posrepuestos.app"
         minSdk = 24
         targetSdk = 34
         versionCode = 1
