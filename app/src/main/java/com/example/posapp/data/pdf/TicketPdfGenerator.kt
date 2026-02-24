@@ -3,7 +3,6 @@ package com.example.posapp.data.pdf
 import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.Color
-import com.example.posapp.R
 import com.example.posapp.domain.model.ItemCarrito
 import com.google.zxing.BarcodeFormat
 import com.google.zxing.qrcode.QRCodeWriter
@@ -23,6 +22,7 @@ import com.itextpdf.layout.element.Table
 import com.itextpdf.layout.properties.HorizontalAlignment
 import com.itextpdf.layout.properties.TextAlignment
 import com.itextpdf.layout.properties.UnitValue
+import com.posrepuestos.app.R
 import java.io.ByteArrayOutputStream
 import java.io.File
 import java.text.SimpleDateFormat
